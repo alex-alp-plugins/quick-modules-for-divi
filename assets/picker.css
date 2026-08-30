@@ -1,0 +1,561 @@
+/* Quick Modules for Divi only runs inside the Visual Builder. */
+
+@media (min-width: 620px) {
+  .alp-dqm-modal {
+    width: min(600px, calc(100vw - 24px)) !important;
+    max-width: min(600px, calc(100vw - 24px)) !important;
+    /* Divi can animate dialog dimensions when they change after mount.
+     * Quick Modules primes this class in the same mutation cycle in which the
+     * module picker is created, so disabling the width transition prevents a
+     * one-frame narrow/transparent state before the final size is painted. */
+    transition-property: opacity, transform !important;
+  }
+}
+
+.alp-dqm-ui {
+  box-sizing: border-box;
+  margin: 0 0 8px;
+  max-width: 100%;
+  font-family: inherit;
+}
+
+.alp-dqm-tabs {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+}
+
+.alp-dqm-tab {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .035);
+  color: #aeb8c8;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease, color .14s ease, transform .14s ease;
+}
+
+.alp-dqm-tab:hover,
+.alp-dqm-tab:focus-visible,
+.alp-dqm-tab[aria-pressed="true"] {
+  border-color: rgba(47, 120, 255, .72);
+  background: rgba(47, 120, 255, .12);
+  color: #edf3ff;
+  outline: none;
+}
+
+.alp-dqm-tab:active { transform: translateY(1px); }
+
+.alp-dqm-tab-icon {
+  color: #7d8795;
+  font-size: 13px;
+  transition: color .14s ease, transform .14s ease;
+}
+
+.alp-dqm-tab:hover .alp-dqm-tab-icon,
+.alp-dqm-tab:focus-visible .alp-dqm-tab-icon,
+.alp-dqm-tab[aria-pressed="true"] .alp-dqm-tab-icon { color: #2f78ff; }
+
+.alp-dqm-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(11, 18, 29, .6);
+  color: #c7d0dd;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.alp-dqm-feedback {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  color: #bfc9d8;
+  font-size: 11px;
+  line-height: 1.3;
+  transition: max-height .18s ease, opacity .18s ease, padding .18s ease;
+}
+
+.alp-dqm-feedback.is-visible {
+  max-height: 28px;
+  padding-top: 5px;
+  opacity: 1;
+}
+
+.alp-dqm-panel {
+  display: none;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 7px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .028);
+}
+
+.alp-dqm-panel.is-open { display: block; }
+
+.alp-dqm-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  padding: 1px;
+}
+
+.alp-dqm-shortcut {
+  appearance: none;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 33px;
+  border: 1px solid rgba(65, 126, 255, .38);
+  border-radius: 6px;
+  background: rgba(28, 42, 61, .72);
+  color: #e8edf5;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+  transition: background .14s ease, border-color .14s ease, transform .14s ease, opacity .14s ease;
+}
+
+.alp-dqm-favorite-shortcut {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) 25px;
+  align-items: center;
+  padding: 0 3px 0 5px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.alp-dqm-favorite-shortcut:active { cursor: grabbing; }
+
+.alp-dqm-favorite-shortcut:hover,
+.alp-dqm-favorite-shortcut:focus-visible,
+.alp-dqm-favorite-shortcut:focus-within,
+.alp-dqm-recent-shortcut:hover,
+.alp-dqm-recent-shortcut:focus-visible {
+  border-color: #2f78ff;
+  background: rgba(47, 120, 255, .16);
+  outline: none;
+}
+
+.alp-dqm-favorite-shortcut.is-dragging {
+  opacity: .45;
+  transform: scale(.98);
+}
+
+.alp-dqm-favorite-shortcut.drop-before::before,
+.alp-dqm-favorite-shortcut.drop-after::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  border-radius: 2px;
+  background: #2f78ff;
+  box-shadow: 0 0 0 2px rgba(47, 120, 255, .15);
+}
+
+.alp-dqm-favorite-shortcut.drop-before::before { left: -4px; }
+.alp-dqm-favorite-shortcut.drop-after::after { right: -4px; }
+
+.alp-dqm-drag-handle {
+  color: #7f8b9b;
+  font-size: 12px;
+  letter-spacing: -3px;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+}
+
+.alp-dqm-shortcut-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alp-dqm-remove-favorite {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #ffca4b;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color .14s ease, background .14s ease, transform .14s ease;
+}
+
+.alp-dqm-remove-favorite:hover,
+.alp-dqm-remove-favorite:focus-visible {
+  color: #ffd970;
+  background: rgba(255, 202, 75, .09);
+  transform: scale(1.08);
+  outline: none;
+}
+
+.alp-dqm-recent-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.alp-dqm-shortcut-icon {
+  flex: 0 0 auto;
+  color: #2f78ff;
+  font-size: 11px;
+}
+
+.alp-dqm-empty {
+  padding: 3px 2px;
+  color: #7e8998;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.alp-dqm-card { position: relative !important; }
+
+.alp-dqm-star {
+  appearance: none;
+  position: absolute;
+  z-index: 30;
+  top: 5px;
+  right: 5px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(11, 18, 29, .72);
+  color: #7d8795;
+  font: inherit;
+  font-size: 14px;
+  line-height: 24px;
+  text-align: center;
+  cursor: pointer;
+  opacity: .58;
+  transition: opacity .14s ease, transform .14s ease, background .14s ease, color .14s ease, box-shadow .14s ease;
+}
+
+.alp-dqm-card:hover > .alp-dqm-star,
+.alp-dqm-star:focus-visible,
+.alp-dqm-star.is-active { opacity: 1; }
+
+.alp-dqm-star:hover,
+.alp-dqm-star:focus-visible {
+  color: #2f78ff;
+  transform: scale(1.1);
+  background: rgba(26, 39, 58, .98);
+  box-shadow: 0 0 0 2px rgba(47, 120, 255, .26);
+  outline: none;
+}
+
+.alp-dqm-star.is-active { color: #ffca4b; }
+.alp-dqm-star.is-active:hover,
+.alp-dqm-star.is-active:focus-visible { color: #ffd970; }
+
+@media (max-width: 520px) {
+  .alp-dqm-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 360px) {
+  .alp-dqm-list { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alp-dqm-tab,
+  .alp-dqm-tab-icon,
+  .alp-dqm-feedback,
+  .alp-dqm-shortcut,
+  .alp-dqm-remove-favorite,
+  .alp-dqm-star { transition: none; }
+}
+
+/* v0.5: make the favorite-card removal affordance unmistakable. */
+.alp-dqm-remove-favorite:hover,
+.alp-dqm-remove-favorite:focus-visible {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, .10);
+}
+
+/* v0.6.0: polished adaptive UI for Divi dark and light modes. */
+.alp-dqm-ui,
+.alp-dqm-modal {
+  --alp-dqm-panel-border: rgba(255, 255, 255, .09);
+  --alp-dqm-panel-bg: rgba(255, 255, 255, .035);
+  --alp-dqm-tab-border: rgba(255, 255, 255, .10);
+  --alp-dqm-tab-bg: rgba(255, 255, 255, .045);
+  --alp-dqm-tab-text: #b9c3d1;
+  --alp-dqm-tab-active-bg: rgba(47, 120, 255, .15);
+  --alp-dqm-tab-active-text: #f3f7ff;
+  --alp-dqm-count-bg: rgba(8, 14, 24, .62);
+  --alp-dqm-count-text: #d4dbe6;
+  --alp-dqm-feedback-bg: #17263c;
+  --alp-dqm-feedback-border: rgba(78, 142, 255, .32);
+  --alp-dqm-feedback-text: #e6eefb;
+  --alp-dqm-card-bg: #1e2b3e;
+  --alp-dqm-card-border: rgba(86, 141, 240, .34);
+  --alp-dqm-card-text: #edf2f8;
+  --alp-dqm-card-hover-bg: #243754;
+  --alp-dqm-card-hover-border: #4c8df6;
+  --alp-dqm-card-shadow: 0 1px 2px rgba(0, 0, 0, .18);
+  --alp-dqm-empty-text: #95a2b5;
+  --alp-dqm-drag-color: #8794a6;
+  --alp-dqm-star-bg: rgba(9, 16, 28, .76);
+  --alp-dqm-star-text: #8896aa;
+  --alp-dqm-star-hover-bg: #253a59;
+  --alp-dqm-star-hover-text: #5a96ff;
+  --alp-dqm-focus-ring: rgba(47, 120, 255, .25);
+}
+
+/*
+ * Divi 5's light picker can keep the outer dialog transparent, so this class is
+ * applied by JS after inspecting the visible picker surfaces and text colors.
+ */
+.alp-dqm-ui.alp-dqm-theme-light,
+.alp-dqm-modal.alp-dqm-theme-light,
+.alp-dqm-modal[data-alp-dqm-theme="light"] .alp-dqm-ui {
+  --alp-dqm-panel-border: #dce4ef;
+  --alp-dqm-panel-bg: #f8fafc;
+  --alp-dqm-tab-border: #d9e2ef;
+  --alp-dqm-tab-bg: #f5f7fa;
+  --alp-dqm-tab-text: #4d5d73;
+  --alp-dqm-tab-active-bg: #edf4ff;
+  --alp-dqm-tab-active-text: #2459a9;
+  --alp-dqm-count-bg: #5f6b7a;
+  --alp-dqm-count-text: #ffffff;
+  --alp-dqm-feedback-bg: #eef6ff;
+  --alp-dqm-feedback-border: #c9ddfb;
+  --alp-dqm-feedback-text: #274a79;
+  --alp-dqm-card-bg: #ffffff;
+  --alp-dqm-card-border: #d8e1ed;
+  --alp-dqm-card-text: #344054;
+  --alp-dqm-card-hover-bg: #f2f7ff;
+  --alp-dqm-card-hover-border: #70a2f8;
+  --alp-dqm-card-shadow: 0 1px 2px rgba(31, 47, 70, .07), 0 2px 6px rgba(31, 47, 70, .04);
+  --alp-dqm-empty-text: #69788d;
+  --alp-dqm-drag-color: #8793a5;
+  --alp-dqm-star-bg: #eef2f7;
+  --alp-dqm-star-text: #7b8798;
+  --alp-dqm-star-hover-bg: #e6effc;
+  --alp-dqm-star-hover-text: #2f78ff;
+  --alp-dqm-focus-ring: rgba(47, 120, 255, .18);
+}
+
+.alp-dqm-tab {
+  border-color: var(--alp-dqm-tab-border) !important;
+  background: var(--alp-dqm-tab-bg) !important;
+  color: var(--alp-dqm-tab-text) !important;
+  box-shadow: none !important;
+}
+
+.alp-dqm-tab:hover,
+.alp-dqm-tab:focus-visible,
+.alp-dqm-tab[aria-pressed="true"] {
+  border-color: #4b8cf5 !important;
+  background: var(--alp-dqm-tab-active-bg) !important;
+  color: var(--alp-dqm-tab-active-text) !important;
+  box-shadow: 0 0 0 2px var(--alp-dqm-focus-ring) !important;
+}
+
+.alp-dqm-count {
+  background: var(--alp-dqm-count-bg) !important;
+  color: var(--alp-dqm-count-text) !important;
+}
+
+.alp-dqm-feedback {
+  color: var(--alp-dqm-feedback-text) !important;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.alp-dqm-feedback.is-visible {
+  display: inline-flex;
+  align-items: center;
+  max-height: 36px;
+  margin-top: 6px;
+  padding: 6px 9px;
+  border: 1px solid var(--alp-dqm-feedback-border);
+  border-radius: 6px;
+  background: var(--alp-dqm-feedback-bg) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+}
+
+.alp-dqm-panel {
+  border-color: var(--alp-dqm-panel-border) !important;
+  background: var(--alp-dqm-panel-bg) !important;
+}
+
+.alp-dqm-shortcut {
+  border-color: var(--alp-dqm-card-border) !important;
+  background: var(--alp-dqm-card-bg) !important;
+  color: var(--alp-dqm-card-text) !important;
+  box-shadow: var(--alp-dqm-card-shadow) !important;
+}
+
+.alp-dqm-favorite-shortcut:hover,
+.alp-dqm-favorite-shortcut:focus-visible,
+.alp-dqm-favorite-shortcut:focus-within,
+.alp-dqm-recent-shortcut:hover,
+.alp-dqm-recent-shortcut:focus-visible {
+  border-color: var(--alp-dqm-card-hover-border) !important;
+  background: var(--alp-dqm-card-hover-bg) !important;
+  color: var(--alp-dqm-card-text) !important;
+  box-shadow: 0 0 0 2px var(--alp-dqm-focus-ring) !important;
+}
+
+.alp-dqm-shortcut-label {
+  color: inherit !important;
+}
+
+.alp-dqm-drag-handle { color: var(--alp-dqm-drag-color) !important; }
+.alp-dqm-empty { color: var(--alp-dqm-empty-text) !important; }
+
+.alp-dqm-remove-favorite {
+  color: #f2b924 !important;
+}
+
+.alp-dqm-remove-favorite:hover,
+.alp-dqm-remove-favorite:focus-visible {
+  color: #e64f58 !important;
+  background: rgba(230, 79, 88, .10) !important;
+}
+
+.alp-dqm-star {
+  background: var(--alp-dqm-star-bg) !important;
+  color: var(--alp-dqm-star-text) !important;
+}
+
+.alp-dqm-star:hover,
+.alp-dqm-star:focus-visible {
+  color: var(--alp-dqm-star-hover-text) !important;
+  background: var(--alp-dqm-star-hover-bg) !important;
+}
+
+.alp-dqm-star.is-active {
+  color: #f2b924 !important;
+}
+
+.alp-dqm-star.is-active:hover,
+.alp-dqm-star.is-active:focus-visible {
+  color: #ffc62e !important;
+}
+
+/* Light mode gets a visibly lighter card system rather than dark slate tiles. */
+.alp-dqm-ui.alp-dqm-theme-light .alp-dqm-favorite-shortcut,
+.alp-dqm-ui.alp-dqm-theme-light .alp-dqm-recent-shortcut {
+  min-height: 36px;
+}
+
+.alp-dqm-ui.alp-dqm-theme-light .alp-dqm-panel {
+  padding: 9px;
+}
+
+
+/* v0.6.1: semantic feedback colors + consistent remove affordance. */
+.alp-dqm-ui,
+.alp-dqm-modal {
+  --alp-dqm-success-bg: #173928;
+  --alp-dqm-success-border: rgba(72, 190, 124, .45);
+  --alp-dqm-success-text: #bdf1d1;
+  --alp-dqm-error-bg: #3b2025;
+  --alp-dqm-error-border: rgba(234, 92, 101, .46);
+  --alp-dqm-error-text: #ffd1d5;
+  --alp-dqm-remove-bg: rgba(230, 79, 88, .11);
+  --alp-dqm-remove-ring: rgba(230, 79, 88, .22);
+  --alp-dqm-remove-text: #ff737b;
+}
+
+.alp-dqm-ui.alp-dqm-theme-light,
+.alp-dqm-modal.alp-dqm-theme-light,
+.alp-dqm-modal[data-alp-dqm-theme="light"] .alp-dqm-ui {
+  --alp-dqm-success-bg: #edf9f1;
+  --alp-dqm-success-border: #b9e5c8;
+  --alp-dqm-success-text: #237343;
+  --alp-dqm-error-bg: #fff1f2;
+  --alp-dqm-error-border: #f3c2c6;
+  --alp-dqm-error-text: #b53d46;
+  --alp-dqm-remove-bg: #fff0f1;
+  --alp-dqm-remove-ring: rgba(214, 63, 74, .16);
+  --alp-dqm-remove-text: #cf3f49;
+}
+
+.alp-dqm-feedback.is-visible.is-success {
+  background: var(--alp-dqm-success-bg) !important;
+  border-color: var(--alp-dqm-success-border) !important;
+  color: var(--alp-dqm-success-text) !important;
+}
+
+.alp-dqm-feedback.is-visible.is-error {
+  background: var(--alp-dqm-error-bg) !important;
+  border-color: var(--alp-dqm-error-border) !important;
+  color: var(--alp-dqm-error-text) !important;
+}
+
+/* Favorite cards: hovering the yellow star clearly means Remove. */
+.alp-dqm-remove-favorite:hover,
+.alp-dqm-remove-favorite:focus-visible {
+  color: var(--alp-dqm-remove-text) !important;
+  background: var(--alp-dqm-remove-bg) !important;
+  box-shadow: 0 0 0 2px var(--alp-dqm-remove-ring) !important;
+}
+
+/* Native Divi module list: an active favorite gets the exact same remove cue. */
+.alp-dqm-star.is-active:hover,
+.alp-dqm-star.is-active:focus-visible {
+  color: var(--alp-dqm-remove-text) !important;
+  background: var(--alp-dqm-remove-bg) !important;
+  box-shadow: 0 0 0 2px var(--alp-dqm-remove-ring) !important;
+  transform: scale(1.1);
+}
+
+
+/* v0.6.2: use a true clock icon for Recent instead of the refresh symbol. */
+.alp-dqm-tab-icon,
+.alp-dqm-shortcut-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alp-dqm-clock-svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.alp-dqm-recent-shortcut .alp-dqm-clock-svg {
+  width: 12px;
+  height: 12px;
+}
