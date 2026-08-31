@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Quick Modules for Divi
  * Description: Shows your favorite and recently used Divi modules at the top of the module picker for quick access.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: ALP Plugins
  * Requires at least: 6.5
  * Requires PHP: 7.4
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class ALP_Divi_Quick_Modules {
-    const VERSION      = '1.0.1';
+    const VERSION      = '1.0.2';
     const META_KEY     = '_alp_divi_module_picker_prefs'; // Kept for seamless migration from earlier versions.
     const NONCE_ACTION = 'alp_divi_quick_modules';
 
@@ -76,6 +76,7 @@ final class ALP_Divi_Quick_Modules {
             'recent'             => $recent,
             'maxRecent'          => 8,
             'schemaVersionSaved' => $schema_version,
+            'locale'             => get_user_locale( get_current_user_id() ),
             'strings'            => self::get_translated_strings(),
         );
     }

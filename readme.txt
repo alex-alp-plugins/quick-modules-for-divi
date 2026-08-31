@@ -4,7 +4,7 @@ Tags: divi, divi 5, favorite modules, recent modules, page builder
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,12 @@ No. Quick Modules for Divi includes no tracking, telemetry, remote API calls, or
 Quick Modules for Divi does not collect or transmit personal data. Favorite and recent module names are stored as WordPress user metadata in the site's own database. The plugin makes no remote requests and includes no analytics or telemetry.
 
 == Changelog ==
+
+= 1.0.2 =
+* Critical fix: prevents Favorites and Recent from appearing inside Divi module settings panels.
+* Restricts Quick Modules enhancements to the actual Insert Module picker.
+* Adds cleanup for stale Quick Modules UI when the module picker closes or changes.
+* Strengthens translated-picker detection without changing the approved responsive sizing.
 
 = 1.0.1 =
 * Added internationalization support for Quick Modules interface strings.

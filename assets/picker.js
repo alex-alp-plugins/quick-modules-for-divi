@@ -190,6 +190,28 @@
       }
     }
 
+    function getUiLocale() {
+      return String(cfg.locale || document.documentElement.lang || 'en').replace('-', '_').toLowerCase();
+    }
+
+    function isEnglishUi() {
+      return /^en(?:_|$)/i.test(getUiLocale());
+    }
+
+    function hasSettingsPanelSignature(el) {
+      if (!(el instanceof HTMLElement)) return false;
+
+      // Divi element-settings panels contain breadcrumbs / settings-oriented
+      // wrappers. The module library does not. This guard is intentionally based
+      // on DOM structure/classes rather than translated labels.
+      if (el.querySelector('[class*="breadcrumb" i], [class*="settings-panel" i], [class*="module-settings" i]')) return true;
+
+      const ownClass = String(el.className || '');
+      if (/breadcrumb|settings-panel|module-settings/i.test(ownClass)) return true;
+
+      return false;
+    }
+
     function looksLikeEnglishModuleModal(el) {
       if (!(el instanceof HTMLElement)) return false;
       const text = normalize(el.innerText);
@@ -199,6 +221,7 @@
 
     function looksLikeTranslatedModuleModal(el) {
       if (!(el instanceof HTMLElement)) return false;
+      if (hasSettingsPanelSignature(el)) return false;
 
       const rect = el.getBoundingClientRect();
       if (rect.width < 280 || rect.height < 260) return false;
@@ -223,7 +246,7 @@
       });
       if (!hasCloseControl) return false;
 
-      let tileCount = 0;
+      const tiles = [];
       const candidates = Array.from(el.querySelectorAll('button, [role="button"], [tabindex], div'));
       for (const candidate of candidates) {
         if (!(candidate instanceof HTMLElement) || candidate.closest('.alp-dqm-ui')) continue;
@@ -233,11 +256,30 @@
         if (r.height < 45 || r.height > 185) continue;
         const text = normalize(candidate.innerText);
         if (!text || text.length > 80) continue;
-        tileCount += 1;
-        if (tileCount >= 4) return true;
+
+        // Module-library cards are visual/clickable tiles. Settings fields and
+        // option groups should not qualify merely because they happen to fit the
+        // same rectangle dimensions.
+        const hasVisual = !!candidate.querySelector('svg, img, [class*="icon" i]');
+        if (!hasVisual && !isClickable(candidate)) continue;
+        tiles.push(r);
       }
 
-      return false;
+      if (tiles.length < 6) return false;
+
+      // Require an actual grid: at least two distinct columns and two rows. This
+      // rules out Divi's vertically stacked Content/Design/Advanced settings UI.
+      const lefts = [];
+      const tops = [];
+      const addDistinct = (list, value, tolerance) => {
+        if (!list.some((existing) => Math.abs(existing - value) <= tolerance)) list.push(value);
+      };
+      tiles.forEach((r) => {
+        addDistinct(lefts, r.left, 24);
+        addDistinct(tops, r.top, 28);
+      });
+
+      return lefts.length >= 2 && tops.length >= 2;
     }
 
     function findBestModal(candidates, matcher) {
@@ -247,6 +289,9 @@
       for (const el of candidates) {
         if (!matcher(el)) continue;
         const r = el.getBoundingClientRect();
+        const style = getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') continue;
+        if (r.bottom <= 0 || r.right <= 0 || r.top >= window.innerHeight || r.left >= window.innerWidth) continue;
         const area = r.width * r.height;
         if (r.width > 280 && r.height > 260 && area < bestArea) {
           best = el;
@@ -259,16 +304,50 @@
     function findModal() {
       const candidates = Array.from(document.querySelectorAll('[role="dialog"], body > div, body *'));
 
-      // Critical: use the exact 1.0.0 detector as a complete first pass. If an
-      // English Divi picker exists, never run the translated structural fallback.
-      // Previous i18n RCs mixed both matchers in one pass; after filtering modules
-      // the fallback could pick a smaller inner results wrapper as the modal, then
-      // our width class stretched that wrapper and produced the right-side cutoff.
+      // On an English Divi UI there is no reason to run the structural fallback.
+      // Doing so after the Insert Module modal closed was the root cause of the
+      // severe bug where Favorites/Recent appeared inside module settings panels.
       const englishModal = findBestModal(candidates, looksLikeEnglishModuleModal);
+      if (isEnglishUi()) return englishModal;
       if (englishModal) return englishModal;
 
-      // Only translated Divi UIs reach this second pass.
+      // Non-English Divi UIs use the stricter structural detector.
       return findBestModal(candidates, looksLikeTranslatedModuleModal);
+    }
+
+    function resetElementEnhancements(root) {
+      if (!(root instanceof Element)) return;
+
+      root.querySelectorAll('.alp-dqm-ui').forEach((node) => node.remove());
+      root.querySelectorAll('.alp-dqm-star').forEach((node) => node.remove());
+      root.querySelectorAll('[data-alp-dqm-card="1"]').forEach((node) => {
+        node.classList.remove('alp-dqm-card');
+        delete node.dataset.alpDqmCard;
+        delete node.dataset.alpDqmName;
+      });
+
+      if (root instanceof HTMLElement) {
+        root.classList.remove('alp-dqm-modal', 'alp-dqm-theme-light', 'alp-dqm-theme-dark', 'alp-dqm-compact', 'alp-dqm-is-narrow', 'alp-dqm-is-xnarrow');
+        delete root.dataset.alpDqmTheme;
+        delete root.dataset.alpDqmPreviewWidth;
+        root.style.removeProperty('--alp-dqm-compact-width');
+        root.style.removeProperty('width');
+        root.style.removeProperty('max-width');
+      }
+    }
+
+    function cleanupInactiveEnhancements(activeModal) {
+      document.querySelectorAll('.alp-dqm-ui').forEach((ui) => {
+        if (!activeModal || !activeModal.contains(ui)) ui.remove();
+      });
+
+      document.querySelectorAll('.alp-dqm-modal').forEach((modal) => {
+        if (modal !== activeModal) resetElementEnhancements(modal);
+      });
+
+      document.querySelectorAll('.alp-dqm-star').forEach((star) => {
+        if (!activeModal || !activeModal.contains(star)) star.remove();
+      });
     }
 
     function getSearchInput(modal) {
@@ -1004,12 +1083,16 @@
         const modal = findModal();
 
         if (!modal) {
+          if (state.modal && document.contains(state.modal)) resetElementEnhancements(state.modal);
+          cleanupInactiveEnhancements(null);
           state.modal = null;
           state.activeQuickTab = null;
           return;
         }
 
         if (state.modal !== modal) {
+          if (state.modal && document.contains(state.modal)) resetElementEnhancements(state.modal);
+          cleanupInactiveEnhancements(modal);
           state.modal = modal;
           state.activeQuickTab = state.favorites.length ? 'favorites' : (state.recent.length ? 'recent' : null);
         }
