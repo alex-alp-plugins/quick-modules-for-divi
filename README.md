@@ -150,9 +150,9 @@ Favorites and recent-module preferences remain inside your WordPress installatio
 
 ## 🧪 Current Version
 
-### 1.0.0
+[![Latest Release](https://img.shields.io/github/v/release/alex-alp-plugins/quick-modules-for-divi?sort=semver&label=Version)](https://github.com/alex-alp-plugins/quick-modules-for-divi/releases/latest)
 
-Initial public release.
+Internationalization and responsive improvements.
 
 Includes:
 
@@ -164,9 +164,35 @@ Includes:
 - Theme Builder support
 - Light Mode support
 - Dark Mode support
+- Responsive module picker sizing for Desktop, Tablet and Phone previews
+- Internationalization support
+- Translations for 18 locales
 - Add/remove favorite notifications
 - Per-user preferences
 
+### Languages
+
+Quick Modules for Divi currently includes translations for:
+
+- Spanish (Costa Rica)
+- Spanish (Spain)
+- Portuguese (Brazil)
+- Portuguese (Portugal)
+- French
+- German
+- Italian
+- Dutch
+- Polish
+- Russian
+- Turkish
+- Indonesian
+- Japanese
+- Korean
+- Simplified Chinese
+- Traditional Chinese
+- Arabic
+- Hindi
+  
 ---
 
 ## 🐛 Issues & Feedback
