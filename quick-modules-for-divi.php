@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Quick Modules for Divi
  * Description: Shows your favorite and recently used Divi modules at the top of the module picker for quick access.
- * Version: 1.0.2
+ * Version: 1.0.3
  * Author: ALP Plugins
  * Requires at least: 6.5
  * Requires PHP: 7.4
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class ALP_Divi_Quick_Modules {
-    const VERSION      = '1.0.2';
+    const VERSION      = '1.0.3';
     const META_KEY     = '_alp_divi_module_picker_prefs'; // Kept for seamless migration from earlier versions.
     const NONCE_ACTION = 'alp_divi_quick_modules';
 
@@ -78,7 +78,45 @@ final class ALP_Divi_Quick_Modules {
             'schemaVersionSaved' => $schema_version,
             'locale'             => get_user_locale( get_current_user_id() ),
             'strings'            => self::get_translated_strings(),
+            'moduleAliases'      => self::get_translated_module_aliases( array_merge( $favorites, $recent ) ),
         );
+    }
+
+    private static function get_translated_module_aliases( $module_names ) {
+        $aliases = array();
+        $names   = array_values( array_unique( array_filter( array_map( 'strval', is_array( $module_names ) ? $module_names : array() ) ) ) );
+
+        if ( empty( $names ) ) {
+            return $aliases;
+        }
+
+        $switched_locale = false;
+        if ( is_user_logged_in() && function_exists( 'switch_to_user_locale' ) ) {
+            $switched_locale = switch_to_user_locale( get_current_user_id() );
+        }
+
+        foreach ( $names as $name ) {
+            $translated = array();
+
+            // Divi's builder strings traditionally use the et_builder text domain.
+            // The theme domain is also checked as a compatibility fallback.
+            foreach ( array( 'et_builder', 'Divi' ) as $domain ) {
+                $candidate = translate( $name, $domain );
+                if ( is_string( $candidate ) && '' !== $candidate && $candidate !== $name && ! in_array( $candidate, $translated, true ) ) {
+                    $translated[] = $candidate;
+                }
+            }
+
+            if ( ! empty( $translated ) ) {
+                $aliases[ $name ] = $translated;
+            }
+        }
+
+        if ( $switched_locale && function_exists( 'restore_previous_locale' ) ) {
+            restore_previous_locale();
+        }
+
+        return $aliases;
     }
 
     private static function get_translated_strings() {

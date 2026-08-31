@@ -219,15 +219,235 @@
       return !!el.querySelector('input[placeholder*="module" i], input[type="search"], input');
     }
 
+    function getLocaleBase() {
+      return getUiLocale().split('_')[0];
+    }
+
+    function foldText(value) {
+      const text = normalize(value || '').toLowerCase();
+      try {
+        return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      } catch (error) {
+        return text;
+      }
+    }
+
+    function compactToken(value) {
+      return foldText(value || '').replace(/[^a-z0-9\u00c0-\u024f\u0400-\u04ff\u0600-\u06ff\u0900-\u097f\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]+/gi, '');
+    }
+
+    function getBuiltinModuleAliases(name) {
+      const locale = getLocaleBase();
+      const normalizedName = normalize(name);
+
+      // Divi has a few legacy/core module translations whose visible builder
+      // label does not always resolve through WordPress' server-side gettext
+      // calls. Keep this list deliberately tiny and only for verified native
+      // module names where a third-party module can otherwise be a dangerous
+      // false match (for example Divi Supreme's Advanced Blurb).
+      const localized = {
+        fr: {
+          Blurb: ['Résumé', 'Resume'],
+        },
+      };
+
+      const aliases = localized[locale] && localized[locale][normalizedName];
+      return Array.isArray(aliases) ? aliases.slice() : [];
+    }
+
+    function getModuleAliasCandidates(name) {
+      const candidates = [normalize(name)];
+      const source = cfg.moduleAliases && typeof cfg.moduleAliases === 'object' ? cfg.moduleAliases : {};
+      const aliases = source[name] || source[normalize(name)] || [];
+      (Array.isArray(aliases) ? aliases : [aliases]).concat(getBuiltinModuleAliases(name)).forEach((alias) => {
+        alias = normalize(alias);
+        if (alias && !candidates.includes(alias)) candidates.push(alias);
+      });
+      return candidates;
+    }
+
+    function getModuleSearchTerms(name) {
+      const aliases = getModuleAliasCandidates(name);
+      const original = normalize(name);
+      if (getLocaleBase() === 'en') return aliases;
+
+      // In a translated Divi UI, search the localized native label first. This
+      // prevents a stored English favorite such as "Blurb" from narrowing the
+      // list to a third-party "Advanced Blurb" before the native "Résumé" tile
+      // can be resolved.
+      return aliases.filter((alias) => foldText(alias) !== foldText(original)).concat([original]);
+    }
+
+    function getCardIdentityTokens(el) {
+      if (!(el instanceof HTMLElement)) return [];
+      const tokens = new Set();
+      const nodes = [el].concat(Array.from(el.querySelectorAll('*')).slice(0, 36));
+
+      const addValue = (raw) => {
+        const value = String(raw || '').toLowerCase();
+        if (!value || value.length > 500) return;
+
+        let match;
+        const diviPattern = /(?:^|[^a-z0-9])divi[\/:_-]+([a-z0-9_-]{2,80})/g;
+        while ((match = diviPattern.exec(value))) tokens.add(compactToken(match[1]));
+
+        const legacyPattern = /(?:^|[^a-z0-9])et[_-]pb[_-]([a-z0-9_-]{2,80})/g;
+        while ((match = legacyPattern.exec(value))) tokens.add(compactToken(match[1]));
+
+        value.split(/[\s|,;:="'()[\]{}<>/\\]+/).forEach((part) => {
+          const token = compactToken(part);
+          if (token.length >= 2 && token.length <= 80) tokens.add(token);
+        });
+      };
+
+      nodes.forEach((node) => {
+        if (!(node instanceof Element)) return;
+        Array.from(node.attributes || []).forEach((attr) => {
+          const attrName = String(attr.name || '').toLowerCase();
+          if (/^(data-|id$|class$|name$|title$|aria-label$)/.test(attrName) || /module|slug|type|block/.test(attrName)) {
+            addValue(attr.value);
+          }
+        });
+      });
+
+      return Array.from(tokens).filter(Boolean);
+    }
+
+    function cardIdentityScore(card, requestedName) {
+      if (!card || !(card.el instanceof HTMLElement)) return 0;
+      const wanted = compactToken(requestedName);
+      if (!wanted || wanted.length < 2) return 0;
+
+      let best = 0;
+      getCardIdentityTokens(card.el).forEach((token) => {
+        if (!token) return;
+        // Exact stable identity is strong enough to select a module whose visible
+        // label has been translated. Partial identities are intentionally kept
+        // below the activation threshold: "advancedblurb" must never be treated
+        // as the native "blurb" module just because it ends with the same word.
+        if (token === wanted) best = Math.max(best, 125);
+        else if (token.length >= 4 && (token.endsWith(wanted) || wanted.endsWith(token))) best = Math.max(best, 78);
+        else if (wanted.length >= 5 && token.includes(wanted)) best = Math.max(best, 68);
+      });
+      return best;
+    }
+
+    function levenshteinDistance(a, b) {
+      a = foldText(a || '');
+      b = foldText(b || '');
+      if (!a) return b.length;
+      if (!b) return a.length;
+      const row = Array.from({ length: b.length + 1 }, (_, index) => index);
+      for (let i = 1; i <= a.length; i += 1) {
+        let previous = row[0];
+        row[0] = i;
+        for (let j = 1; j <= b.length; j += 1) {
+          const old = row[j];
+          row[j] = Math.min(
+            row[j] + 1,
+            row[j - 1] + 1,
+            previous + (a[i - 1] === b[j - 1] ? 0 : 1)
+          );
+          previous = old;
+        }
+      }
+      return row[b.length];
+    }
+
+    function labelSimilarityScore(label, requestedName) {
+      const labelFolded = foldText(label);
+      const requestedFolded = foldText(requestedName);
+      if (!labelFolded || !requestedFolded) return 0;
+      if (labelFolded === requestedFolded) return 115;
+      if (labelFolded.startsWith(requestedFolded) || requestedFolded.startsWith(labelFolded)) {
+        const difference = Math.abs(labelFolded.length - requestedFolded.length);
+        if (difference <= 3) return 92 - difference;
+      }
+      const maxLength = Math.max(labelFolded.length, requestedFolded.length);
+      if (maxLength > 16) return 0;
+      const similarity = 1 - (levenshteinDistance(labelFolded, requestedFolded) / maxLength);
+      return similarity >= 0.78 ? Math.round(70 + similarity * 20) : 0;
+    }
+
+    function hasLocalizedModuleSearchSignal(input) {
+      if (!(input instanceof HTMLInputElement)) return false;
+      const haystack = foldText([
+        input.getAttribute('placeholder') || '',
+        input.getAttribute('aria-label') || '',
+        input.getAttribute('title') || '',
+      ].join(' '));
+
+      const tokens = {
+        fr: ['module'],
+        es: ['modulo'],
+        pt: ['modulo'],
+        de: ['modul'],
+        it: ['modulo'],
+        nl: ['module'],
+        pl: ['modul'],
+        ru: ['модул'],
+        tr: ['modul'],
+        id: ['modul'],
+        ja: ['モジュール'],
+        ko: ['모듈'],
+        zh: ['模块', '模組'],
+        ar: ['وحدة'],
+        hi: ['मॉड्यूल', 'माड्यूल'],
+      };
+
+      const localeTokens = tokens[getLocaleBase()] || [];
+      return localeTokens.some((token) => haystack.includes(foldText(token)));
+    }
+
+    function looksLikeKnownLocalizedModuleModal(el) {
+      if (!(el instanceof HTMLElement)) return false;
+      const input = el.querySelector('input[type="search"], input[placeholder]');
+      if (!(input instanceof HTMLInputElement) || !hasLocalizedModuleSearchSignal(input)) return false;
+
+      const text = foldText(el.innerText);
+      const locale = getLocaleBase();
+      const titlePatterns = {
+        fr: [/inserer\s+(?:un\s+)?module/i],
+        es: [/insertar\s+(?:un\s+)?modulo/i],
+        pt: [/inserir\s+(?:um\s+)?modulo/i],
+        de: [/modul\s+einfugen/i, /einfugen.*modul/i],
+        it: [/inserisci\s+(?:un\s+)?modulo/i],
+        nl: [/module\s+invoegen/i, /voeg.*module/i],
+        pl: [/wstaw.*modul/i],
+        ru: [/встав.*модул/i],
+        tr: [/modul.*ekle/i, /ekle.*modul/i],
+        id: [/sisipkan.*modul/i, /tambah.*modul/i],
+        ja: [/モジュール.*挿入/i, /モジュール.*追加/i],
+        ko: [/모듈.*삽입/i, /모듈.*추가/i],
+        zh: [/插入.*模[块組]/i, /添加.*模[块組]/i],
+        ar: [/إدراج.*وحدة/i, /إضافة.*وحدة/i],
+        hi: [/मॉड्यूल.*(?:डाल|जोड़|सम्मिलित)/i],
+      };
+
+      const patterns = titlePatterns[locale] || [];
+      if (!patterns.some((pattern) => pattern.test(text))) return false;
+
+      const rect = el.getBoundingClientRect();
+      return rect.width >= 280 && rect.height >= 260;
+    }
+
     function looksLikeTranslatedModuleModal(el) {
       if (!(el instanceof HTMLElement)) return false;
-      if (hasSettingsPanelSignature(el)) return false;
 
       const rect = el.getBoundingClientRect();
       if (rect.width < 280 || rect.height < 260) return false;
 
       const input = el.querySelector('input[type="search"], input[placeholder]');
       if (!(input instanceof HTMLInputElement)) return false;
+      const localizedSearch = hasLocalizedModuleSearchSignal(input);
+
+      // A translated module picker may be opened from inside an element settings
+      // panel (nested modules, Woo modules, etc.). In that case the picker can
+      // legitimately contain settings-oriented wrappers in its subtree. Only use
+      // that signature as a rejection signal when the search field itself does
+      // not clearly identify a localized module search.
+      if (!localizedSearch && hasSettingsPanelSignature(el)) return false;
+
       const inputRect = input.getBoundingClientRect();
       if (inputRect.width < rect.width * 0.45) return false;
       if (inputRect.top < rect.top || inputRect.top > rect.top + rect.height * 0.78) return false;
@@ -265,7 +485,7 @@
         tiles.push(r);
       }
 
-      if (tiles.length < 6) return false;
+      if (tiles.length < (localizedSearch ? 4 : 6)) return false;
 
       // Require an actual grid: at least two distinct columns and two rows. This
       // rules out Divi's vertically stacked Content/Design/Advanced settings UI.
@@ -311,7 +531,14 @@
       if (isEnglishUi()) return englishModal;
       if (englishModal) return englishModal;
 
-      // Non-English Divi UIs use the stricter structural detector.
+      // Prefer a positive localized title/search match for supported languages.
+      // This is safer than relying only on layout heuristics and fixes fully
+      // translated Divi interfaces such as French ("Insérer un module...").
+      const localizedModal = findBestModal(candidates, looksLikeKnownLocalizedModuleModal);
+      if (localizedModal) return localizedModal;
+
+      // Last resort for translated/unsupported Divi locales: use the hardened
+      // structural detector.
       return findBestModal(candidates, looksLikeTranslatedModuleModal);
     }
 
@@ -419,9 +646,55 @@
       return cards;
     }
 
+    function isQualifiedVariantLabel(label, aliases) {
+      const folded = foldText(label);
+      if (!folded) return false;
+
+      return aliases.some((alias) => {
+        const needle = foldText(alias);
+        if (!needle || folded === needle || needle.length < 3) return false;
+        const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp('(?:^|\\s)' + escaped + '(?:$|\\s)', 'i').test(folded) && folded.split(/\s+/).length > needle.split(/\s+/).length;
+      });
+    }
+
     function findCardByName(modal, name) {
-      const wanted = normalize(name).toLowerCase();
-      return getModuleCards(modal).find((card) => card.name.toLowerCase() === wanted) || null;
+      const cards = getModuleCards(modal);
+      const aliases = getModuleAliasCandidates(name);
+      const foldedAliases = aliases.map((alias) => foldText(alias));
+
+      // First choice: exact visible label, including a Divi-provided localized
+      // alias when the stored favorite was created under another UI language.
+      const exact = cards.find((card) => foldedAliases.includes(foldText(card.name)));
+      if (exact) return exact;
+
+      // Divi 5 module tiles normally expose their block/module slug somewhere in
+      // data attributes or classes. Only exact/stable identities may select a tile
+      // by themselves. A partial identity such as "advancedblurb" is not enough
+      // to stand in for the native "blurb" module.
+      let best = null;
+      let bestScore = 0;
+      cards.forEach((card) => {
+        let score = cardIdentityScore(card, name);
+        aliases.forEach((alias) => {
+          score = Math.max(score, cardIdentityScore(card, alias), labelSimilarityScore(card.name, alias));
+        });
+
+        // A visible qualified/third-party variant ("Advanced Blurb",
+        // "Supreme Button", etc.) must never win a fuzzy resolution for a shorter
+        // stored native module name. Exact visible aliases were already handled
+        // above, so capping here is safe.
+        if (isQualifiedVariantLabel(card.name, aliases)) score = Math.min(score, 82);
+
+        if (score > bestScore) {
+          best = card;
+          bestScore = score;
+        }
+      });
+
+      // Wrong insertion is worse than a visible "not found" message. Require an
+      // exact stable identity or an exceptionally strong localized-label match.
+      return bestScore >= 100 ? best : null;
     }
 
     function resolveNativeCardFromTarget(target) {
@@ -618,12 +891,15 @@
         const input = getSearchInput(state.modal);
         if (!input) return;
         const oldValue = input.value;
-        setInputValue(input, name);
+        const searchTerms = getModuleSearchTerms(name);
 
-        card = await waitForCard(name, 1200);
-        if (card && activateNativeCard(card, name)) {
-          activated = true;
-          return;
+        for (const term of searchTerms) {
+          setInputValue(input, term);
+          card = await waitForCard(name, 900);
+          if (card && activateNativeCard(card, name)) {
+            activated = true;
+            return;
+          }
         }
 
         setInputValue(input, oldValue || '');
