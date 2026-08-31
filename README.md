@@ -152,6 +152,42 @@ Favorites and recent-module preferences remain inside your WordPress installatio
 
 [![Latest Version](https://img.shields.io/github/v/tag/alex-alp-plugins/quick-modules-for-divi?sort=semver&label=Version)](https://github.com/alex-alp-plugins/quick-modules-for-divi/releases/latest)
 
+### 1.0.4
+
+Stability, localization and Divi 5.11 compatibility update.
+
+Includes:
+
+- Favorite modules
+- Recently used modules
+- Drag and drop favorite ordering
+- Direct insertion from Favorites and Recent
+- Visual Builder support
+- Theme Builder support
+- Light Mode support
+- Dark Mode support
+- Responsive picker sizing
+- Internationalization support
+- Translations for 18 locales
+- Cross-language favorite matching
+- Third-party module compatibility
+- Stable favorites during scrolling and searching
+- Improved native Divi module picker detection
+- Per-user preferences
+
+### Fixes
+
+- Fixed Quick Modules controls appearing inside normal Divi settings panels.
+- Fixed favorite stars appearing in Animation and other non-module selectors.
+- Improved translated Divi picker detection.
+- Improved cross-language favorite and Recent module matching.
+- Prevented native modules from being confused with similarly named third-party modules.
+- Fixed favorites and stars disappearing after scrolling or searching.
+- Fixed translated module names remaining after switching languages.
+- Improved compatibility with Divi 5.11.x.
+- Fixed native modal sizing and internal picker layout issues.
+- Improved Desktop, Tablet and Phone picker behavior.
+
 ### 1.0.3
 
 - Fixed Quick Modules not loading when Divi translations are enabled.
