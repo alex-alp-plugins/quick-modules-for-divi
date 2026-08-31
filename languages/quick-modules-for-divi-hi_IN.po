@@ -1,0 +1,49 @@
+# Quick Modules for Divi - Hindi
+# Copyright (C) 2026 ALP Plugins
+# This file is distributed under the GPLv2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Quick Modules for Divi 1.0.1\n"
+"Language: hi_IN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Domain: quick-modules-for-divi\n"
+
+msgid "Favorites"
+msgstr "पसंदीदा"
+
+msgid "Recent"
+msgstr "हाल में उपयोग किए गए"
+
+msgid "No favorites yet. Click a star to add one."
+msgstr "अभी कोई पसंदीदा नहीं है। जोड़ने के लिए तारे पर क्लिक करें।"
+
+msgid "Recently used modules will appear here."
+msgstr "हाल ही में उपयोग किए गए मॉड्यूल यहाँ दिखाई देंगे।"
+
+msgid "Add to favorites"
+msgstr "पसंदीदा में जोड़ें"
+
+msgid "Remove from favorites"
+msgstr "पसंदीदा से हटाएँ"
+
+#. translators: %s: Divi module name.
+msgid "%s added to Favorites."
+msgstr "%s को पसंदीदा में जोड़ दिया गया।"
+
+#. translators: %s: Divi module name.
+msgid "%s removed from Favorites."
+msgstr "%s को पसंदीदा से हटा दिया गया।"
+
+#. translators: %s: Divi module name.
+msgid "Remove %s from favorites"
+msgstr "%s को पसंदीदा से हटाएँ"
+
+msgid "Drag to reorder"
+msgstr "क्रम बदलने के लिए खींचें"
+
+#. translators: %s: Divi module name.
+msgid "Could not find %s in the current module list."
+msgstr "वर्तमान मॉड्यूल सूची में %s नहीं मिला।"

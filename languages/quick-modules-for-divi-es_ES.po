@@ -1,0 +1,49 @@
+# Quick Modules for Divi - Spanish (Spain)
+# Copyright (C) 2026 ALP Plugins
+# This file is distributed under the GPLv2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Quick Modules for Divi 1.0.1\n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Domain: quick-modules-for-divi\n"
+
+msgid "Favorites"
+msgstr "Favoritos"
+
+msgid "Recent"
+msgstr "Recientes"
+
+msgid "No favorites yet. Click a star to add one."
+msgstr "Aún no hay favoritos. Haz clic en una estrella para agregar uno."
+
+msgid "Recently used modules will appear here."
+msgstr "Los módulos usados recientemente aparecerán aquí."
+
+msgid "Add to favorites"
+msgstr "Agregar a favoritos"
+
+msgid "Remove from favorites"
+msgstr "Quitar de favoritos"
+
+#. translators: %s: Divi module name.
+msgid "%s added to Favorites."
+msgstr "%s se agregó a Favoritos."
+
+#. translators: %s: Divi module name.
+msgid "%s removed from Favorites."
+msgstr "%s se quitó de Favoritos."
+
+#. translators: %s: Divi module name.
+msgid "Remove %s from favorites"
+msgstr "Quitar %s de favoritos"
+
+msgid "Drag to reorder"
+msgstr "Arrastra para reordenar"
+
+#. translators: %s: Divi module name.
+msgid "Could not find %s in the current module list."
+msgstr "No se pudo encontrar %s en la lista actual de módulos."

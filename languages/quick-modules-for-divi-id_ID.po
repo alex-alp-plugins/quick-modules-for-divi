@@ -1,0 +1,49 @@
+# Quick Modules for Divi - Indonesian
+# Copyright (C) 2026 ALP Plugins
+# This file is distributed under the GPLv2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Quick Modules for Divi 1.0.1\n"
+"Language: id_ID\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Domain: quick-modules-for-divi\n"
+
+msgid "Favorites"
+msgstr "Favorit"
+
+msgid "Recent"
+msgstr "Terakhir Digunakan"
+
+msgid "No favorites yet. Click a star to add one."
+msgstr "Belum ada favorit. Klik bintang untuk menambahkannya."
+
+msgid "Recently used modules will appear here."
+msgstr "Modul yang baru digunakan akan muncul di sini."
+
+msgid "Add to favorites"
+msgstr "Tambahkan ke favorit"
+
+msgid "Remove from favorites"
+msgstr "Hapus dari favorit"
+
+#. translators: %s: Divi module name.
+msgid "%s added to Favorites."
+msgstr "%s ditambahkan ke Favorit."
+
+#. translators: %s: Divi module name.
+msgid "%s removed from Favorites."
+msgstr "%s dihapus dari Favorit."
+
+#. translators: %s: Divi module name.
+msgid "Remove %s from favorites"
+msgstr "Hapus %s dari favorit"
+
+msgid "Drag to reorder"
+msgstr "Seret untuk mengurutkan ulang"
+
+#. translators: %s: Divi module name.
+msgid "Could not find %s in the current module list."
+msgstr "%s tidak ditemukan dalam daftar modul saat ini."

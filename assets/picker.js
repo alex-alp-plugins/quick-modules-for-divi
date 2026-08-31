@@ -190,20 +190,62 @@
       }
     }
 
-    function looksLikeModuleModal(el) {
+    function looksLikeEnglishModuleModal(el) {
       if (!(el instanceof HTMLElement)) return false;
       const text = normalize(el.innerText);
       if (!/Insert Module Or Row/i.test(text)) return false;
       return !!el.querySelector('input[placeholder*="module" i], input[type="search"], input');
     }
 
-    function findModal() {
-      const candidates = Array.from(document.querySelectorAll('[role="dialog"], body > div, body *'));
+    function looksLikeTranslatedModuleModal(el) {
+      if (!(el instanceof HTMLElement)) return false;
+
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 280 || rect.height < 260) return false;
+
+      const input = el.querySelector('input[type="search"], input[placeholder]');
+      if (!(input instanceof HTMLInputElement)) return false;
+      const inputRect = input.getBoundingClientRect();
+      if (inputRect.width < rect.width * 0.45) return false;
+      if (inputRect.top < rect.top || inputRect.top > rect.top + rect.height * 0.78) return false;
+
+      // Only the real Divi picker owns the close control near the upper-right
+      // corner. Inner result/grid wrappers do not, which prevents them from ever
+      // receiving Quick Modules' modal width class during live search.
+      const hasCloseControl = Array.from(el.querySelectorAll('button, [role="button"]')).some((button) => {
+        if (!(button instanceof HTMLElement)) return false;
+        const r = button.getBoundingClientRect();
+        return r.width >= 18 && r.width <= 72
+          && r.height >= 18 && r.height <= 72
+          && r.top >= rect.top - 2
+          && r.top <= rect.top + Math.min(110, rect.height * 0.22)
+          && r.right >= rect.right - Math.min(120, rect.width * 0.25);
+      });
+      if (!hasCloseControl) return false;
+
+      let tileCount = 0;
+      const candidates = Array.from(el.querySelectorAll('button, [role="button"], [tabindex], div'));
+      for (const candidate of candidates) {
+        if (!(candidate instanceof HTMLElement) || candidate.closest('.alp-dqm-ui')) continue;
+        const r = candidate.getBoundingClientRect();
+        if (r.top <= inputRect.bottom - 4) continue;
+        if (r.width < 70 || r.width > Math.min(260, rect.width * 0.55)) continue;
+        if (r.height < 45 || r.height > 185) continue;
+        const text = normalize(candidate.innerText);
+        if (!text || text.length > 80) continue;
+        tileCount += 1;
+        if (tileCount >= 4) return true;
+      }
+
+      return false;
+    }
+
+    function findBestModal(candidates, matcher) {
       let best = null;
       let bestArea = Infinity;
 
       for (const el of candidates) {
-        if (!looksLikeModuleModal(el)) continue;
+        if (!matcher(el)) continue;
         const r = el.getBoundingClientRect();
         const area = r.width * r.height;
         if (r.width > 280 && r.height > 260 && area < bestArea) {
@@ -212,6 +254,21 @@
         }
       }
       return best;
+    }
+
+    function findModal() {
+      const candidates = Array.from(document.querySelectorAll('[role="dialog"], body > div, body *'));
+
+      // Critical: use the exact 1.0.0 detector as a complete first pass. If an
+      // English Divi picker exists, never run the translated structural fallback.
+      // Previous i18n RCs mixed both matchers in one pass; after filtering modules
+      // the fallback could pick a smaller inner results wrapper as the modal, then
+      // our width class stretched that wrapper and produced the right-side cutoff.
+      const englishModal = findBestModal(candidates, looksLikeEnglishModuleModal);
+      if (englishModal) return englishModal;
+
+      // Only translated Divi UIs reach this second pass.
+      return findBestModal(candidates, looksLikeTranslatedModuleModal);
     }
 
     function getSearchInput(modal) {
@@ -593,7 +650,123 @@
       return button;
     }
 
+    function getAccessibleBuilderDocuments() {
+      const docs = [document];
+      try {
+        if (window.top && window.top.document && window.top.document !== document) {
+          docs.push(window.top.document);
+        }
+      } catch (e) {}
+      try {
+        if (window.parent && window.parent.document && !docs.includes(window.parent.document)) {
+          docs.push(window.parent.document);
+        }
+      } catch (e) {}
+      return docs;
+    }
+
+    function collectOpenRoots(doc) {
+      const roots = [doc];
+      const queue = [doc.documentElement];
+      const seen = new Set();
+
+      while (queue.length) {
+        const node = queue.shift();
+        if (!node || node.nodeType !== 1 || seen.has(node)) continue;
+        seen.add(node);
+
+        if (node.shadowRoot) {
+          roots.push(node.shadowRoot);
+          Array.from(node.shadowRoot.querySelectorAll('*')).forEach((child) => queue.push(child));
+        }
+
+        Array.from(node.children || []).forEach((child) => queue.push(child));
+      }
+
+      return roots;
+    }
+
+    function extractPreviewPx(el) {
+      if (!el || el.nodeType !== 1) return null;
+      const values = [];
+      if ('value' in el && typeof el.value === 'string') values.push(el.value);
+      ['value', 'aria-label', 'title', 'placeholder', 'data-value'].forEach((attr) => {
+        const value = el.getAttribute && el.getAttribute(attr);
+        if (value) values.push(value);
+      });
+      if (el.textContent) values.push(el.textContent);
+
+      for (const raw of values) {
+        const normalized = String(raw || '').replace(/\s+/g, ' ').trim();
+        const match = normalized.match(/(?:^|\s)(\d{3,4})\s*px(?:$|\s)/i) || normalized.match(/^(\d{3,4})\s*px$/i);
+        if (!match) continue;
+        const value = parseInt(match[1], 10);
+        if (Number.isFinite(value) && value >= 260 && value <= 1600) return value;
+      }
+      return null;
+    }
+
+    function getDiviPreviewWidth() {
+      const matches = [];
+
+      getAccessibleBuilderDocuments().forEach((doc) => {
+        const view = doc.defaultView || window;
+        collectOpenRoots(doc).forEach((root) => {
+          let candidates = [];
+          try {
+            candidates = Array.from(root.querySelectorAll('input, [contenteditable="true"], button, [role="button"], span, div'));
+          } catch (e) {}
+
+          candidates.forEach((el) => {
+            let rect;
+            try { rect = el.getBoundingClientRect(); } catch (e) { return; }
+            if (!rect || rect.width <= 0 || rect.height <= 0) return;
+            if (rect.top < -2 || rect.top > 130) return;
+            if (rect.left < -2 || rect.left > view.innerWidth) return;
+            if (rect.width > 260 || rect.height > 90) return;
+
+            const value = extractPreviewPx(el);
+            if (value === null) return;
+
+            // Prefer compact controls near the center/top toolbar over large wrappers.
+            const score = rect.top + (rect.width * 0.05) + Math.abs(value - 484) * 0.001;
+            matches.push({ value, score });
+          });
+        });
+      });
+
+      if (!matches.length) return null;
+      matches.sort((a, b) => a.score - b.score);
+      return matches[0].value;
+    }
+
+    function syncPreviewModalWidth(modal) {
+      if (!(modal instanceof HTMLElement)) return;
+      const previewWidth = getDiviPreviewWidth();
+      modal.dataset.alpDqmPreviewWidth = previewWidth === null ? '' : String(previewWidth);
+
+      let modalWidth = 600;
+      let compact = false;
+
+      // Divi's 484px value is the canvas preview width, not the browser viewport.
+      // For phone-sized previews we intentionally use a comfortable 500px picker.
+      if (previewWidth !== null && previewWidth <= 520) {
+        modalWidth = 500;
+        compact = true;
+      } else if (previewWidth !== null && previewWidth <= 900) {
+        modalWidth = 550;
+        compact = true;
+      }
+
+      modal.style.setProperty('--alp-dqm-modal-width', modalWidth + 'px');
+      // Inline important values are a final safeguard against Divi's own dialog sizing.
+      modal.style.setProperty('width', 'min(' + modalWidth + 'px, calc(100vw - 24px))', 'important');
+      modal.style.setProperty('max-width', 'min(' + modalWidth + 'px, calc(100vw - 24px))', 'important');
+      modal.dataset.alpDqmCompact = compact ? '1' : '0';
+    }
+
     function syncUiWidth(modal, ui) {
+      syncPreviewModalWidth(modal);
       const searchBlock = getSearchBlock(modal);
       if (!searchBlock || !ui) return;
       const rect = searchBlock.getBoundingClientRect();
@@ -807,6 +980,7 @@
       // allowed Divi's native narrower dialog to be visible for a frame and made the
       // picker appear to grow / show a transparent strip on the right.
       modal.classList.add('alp-dqm-modal');
+      syncPreviewModalWidth(modal);
       return modal;
     }
 
@@ -948,9 +1122,24 @@
       if (event.target.closest('.alp-dqm-ui')) return;
 
       const candidate = event.target.closest('button, [role="tab"], [role="button"], a, div');
-      if (!candidate) return;
+      if (!candidate || !state.activeQuickTab) return;
       const text = normalize(candidate.innerText);
-      if (/^(New Module|New Row|Add From Library)$/i.test(text) && state.activeQuickTab) {
+
+      if (/^(New Module|New Row|Add From Library)$/i.test(text)) {
+        state.activeQuickTab = null;
+        renderQuickUI(state.modal);
+        return;
+      }
+
+      // Localized Divi tab labels: only accept an actual button/tab positioned
+      // above the module search field. This adds language support without touching
+      // the native module/results layout.
+      const nativeControl = event.target.closest('button, [role="tab"]');
+      const searchInput = getSearchInput(state.modal);
+      if (!(nativeControl instanceof HTMLElement) || !(searchInput instanceof HTMLElement)) return;
+      const controlRect = nativeControl.getBoundingClientRect();
+      const searchRect = searchInput.getBoundingClientRect();
+      if (controlRect.bottom <= searchRect.top - 6 && controlRect.height <= 72) {
         state.activeQuickTab = null;
         renderQuickUI(state.modal);
       }
@@ -972,6 +1161,15 @@
     observer.observe(document.documentElement, { childList: true, subtree: true });
 
     window.addEventListener('resize', scheduleEnhance, { passive: true });
+
+    // Divi's responsive toolbar can live in the top builder window while the
+    // module picker runs in the app window. Poll only while the picker exists so
+    // a change such as Desktop -> 484px Phone preview updates the width promptly.
+    setInterval(() => {
+      if (state.modal && document.contains(state.modal)) {
+        syncPreviewModalWidth(state.modal);
+      }
+    }, 250);
 
     if (state.needsMigration) setTimeout(save, 80);
 

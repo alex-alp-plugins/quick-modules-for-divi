@@ -1,0 +1,49 @@
+# Quick Modules for Divi - Turkish
+# Copyright (C) 2026 ALP Plugins
+# This file is distributed under the GPLv2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Quick Modules for Divi 1.0.1\n"
+"Language: tr_TR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Domain: quick-modules-for-divi\n"
+
+msgid "Favorites"
+msgstr "Favoriler"
+
+msgid "Recent"
+msgstr "Son Kullanılanlar"
+
+msgid "No favorites yet. Click a star to add one."
+msgstr "Henüz favori yok. Eklemek için bir yıldıza tıklayın."
+
+msgid "Recently used modules will appear here."
+msgstr "Son kullanılan modüller burada görünecek."
+
+msgid "Add to favorites"
+msgstr "Favorilere ekle"
+
+msgid "Remove from favorites"
+msgstr "Favorilerden kaldır"
+
+#. translators: %s: Divi module name.
+msgid "%s added to Favorites."
+msgstr "%s Favorilere eklendi."
+
+#. translators: %s: Divi module name.
+msgid "%s removed from Favorites."
+msgstr "%s Favorilerden kaldırıldı."
+
+#. translators: %s: Divi module name.
+msgid "Remove %s from favorites"
+msgstr "%s öğesini favorilerden kaldır"
+
+msgid "Drag to reorder"
+msgstr "Yeniden sıralamak için sürükleyin"
+
+#. translators: %s: Divi module name.
+msgid "Could not find %s in the current module list."
+msgstr "%s mevcut modül listesinde bulunamadı."

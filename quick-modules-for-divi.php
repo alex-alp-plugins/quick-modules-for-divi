@@ -2,13 +2,14 @@
 /**
  * Plugin Name: Quick Modules for Divi
  * Description: Shows your favorite and recently used Divi modules at the top of the module picker for quick access.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: ALP Plugins
  * Requires at least: 6.5
  * Requires PHP: 7.4
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: quick-modules-for-divi
+ * Domain Path: /languages
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -16,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class ALP_Divi_Quick_Modules {
-    const VERSION      = '1.0.0';
+    const VERSION      = '1.0.1';
     const META_KEY     = '_alp_divi_module_picker_prefs'; // Kept for seamless migration from earlier versions.
     const NONCE_ACTION = 'alp_divi_quick_modules';
 
@@ -75,24 +76,40 @@ final class ALP_Divi_Quick_Modules {
             'recent'             => $recent,
             'maxRecent'          => 8,
             'schemaVersionSaved' => $schema_version,
-            'strings'            => array(
-                'favorites'   => __( 'Favorites', 'quick-modules-for-divi' ),
-                'recent'      => __( 'Recent', 'quick-modules-for-divi' ),
-                'emptyFav'    => __( 'No favorites yet. Click a star to add one.', 'quick-modules-for-divi' ),
-                'emptyRecent' => __( 'Recently used modules will appear here.', 'quick-modules-for-divi' ),
-                'favorite'    => __( 'Add to favorites', 'quick-modules-for-divi' ),
-                'unfavorite'  => __( 'Remove from favorites', 'quick-modules-for-divi' ),
-                /* translators: %s: Divi module name. */
-                'addedFavorite' => __( '%s added to Favorites.', 'quick-modules-for-divi' ),
-                /* translators: %s: Divi module name. */
-                'removedFavorite' => __( '%s removed from Favorites.', 'quick-modules-for-divi' ),
-                /* translators: %s: Divi module name. */
-                'removeFavoriteNamed' => __( 'Remove %s from favorites', 'quick-modules-for-divi' ),
-                'dragFavorite' => __( 'Drag to reorder', 'quick-modules-for-divi' ),
-                /* translators: %s: Divi module name. */
-                'moduleNotFound' => __( 'Could not find %s in the current module list.', 'quick-modules-for-divi' ),
-            ),
+            'strings'            => self::get_translated_strings(),
         );
+    }
+
+    private static function get_translated_strings() {
+        $switched_locale = false;
+
+        if ( is_user_logged_in() && function_exists( 'switch_to_user_locale' ) ) {
+            $switched_locale = switch_to_user_locale( get_current_user_id() );
+        }
+
+        $strings = array(
+            'favorites'   => __( 'Favorites', 'quick-modules-for-divi' ),
+            'recent'      => __( 'Recent', 'quick-modules-for-divi' ),
+            'emptyFav'    => __( 'No favorites yet. Click a star to add one.', 'quick-modules-for-divi' ),
+            'emptyRecent' => __( 'Recently used modules will appear here.', 'quick-modules-for-divi' ),
+            'favorite'    => __( 'Add to favorites', 'quick-modules-for-divi' ),
+            'unfavorite'  => __( 'Remove from favorites', 'quick-modules-for-divi' ),
+            /* translators: %s: Divi module name. */
+            'addedFavorite' => __( '%s added to Favorites.', 'quick-modules-for-divi' ),
+            /* translators: %s: Divi module name. */
+            'removedFavorite' => __( '%s removed from Favorites.', 'quick-modules-for-divi' ),
+            /* translators: %s: Divi module name. */
+            'removeFavoriteNamed' => __( 'Remove %s from favorites', 'quick-modules-for-divi' ),
+            'dragFavorite' => __( 'Drag to reorder', 'quick-modules-for-divi' ),
+            /* translators: %s: Divi module name. */
+            'moduleNotFound' => __( 'Could not find %s in the current module list.', 'quick-modules-for-divi' ),
+        );
+
+        if ( $switched_locale && function_exists( 'restore_previous_locale' ) ) {
+            restore_previous_locale();
+        }
+
+        return $strings;
     }
 
     private static function enqueue_direct_assets( $handle ) {

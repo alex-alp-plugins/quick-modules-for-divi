@@ -4,7 +4,7 @@ Tags: divi, divi 5, favorite modules, recent modules, page builder
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,11 @@ No. Quick Modules for Divi includes no tracking, telemetry, remote API calls, or
 Quick Modules for Divi does not collect or transmit personal data. Favorite and recent module names are stored as WordPress user metadata in the site's own database. The plugin makes no remote requests and includes no analytics or telemetry.
 
 == Changelog ==
+
+= 1.0.1 =
+* Added internationalization support for Quick Modules interface strings.
+* Added bundled translations for Spanish (Costa Rica and Spain), Portuguese (Brazil and Portugal), French, German, Italian, Dutch, Polish, Russian, Turkish, Indonesian, Japanese, Korean, Simplified Chinese, Traditional Chinese, Arabic, and Hindi.
+* Preserved the 1.0.0 picker layout and behavior while adding a safe translated-Divi fallback.
 
 = 1.0.0 =
 * Initial public release.

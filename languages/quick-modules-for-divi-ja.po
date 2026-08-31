@@ -1,0 +1,49 @@
+# Quick Modules for Divi - Japanese
+# Copyright (C) 2026 ALP Plugins
+# This file is distributed under the GPLv2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Quick Modules for Divi 1.0.1\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Domain: quick-modules-for-divi\n"
+
+msgid "Favorites"
+msgstr "お気に入り"
+
+msgid "Recent"
+msgstr "最近使用"
+
+msgid "No favorites yet. Click a star to add one."
+msgstr "お気に入りはまだありません。星をクリックして追加してください。"
+
+msgid "Recently used modules will appear here."
+msgstr "最近使用したモジュールがここに表示されます。"
+
+msgid "Add to favorites"
+msgstr "お気に入りに追加"
+
+msgid "Remove from favorites"
+msgstr "お気に入りから削除"
+
+#. translators: %s: Divi module name.
+msgid "%s added to Favorites."
+msgstr "%s をお気に入りに追加しました。"
+
+#. translators: %s: Divi module name.
+msgid "%s removed from Favorites."
+msgstr "%s をお気に入りから削除しました。"
+
+#. translators: %s: Divi module name.
+msgid "Remove %s from favorites"
+msgstr "%s をお気に入りから削除"
+
+msgid "Drag to reorder"
+msgstr "ドラッグして並べ替え"
+
+#. translators: %s: Divi module name.
+msgid "Could not find %s in the current module list."
+msgstr "現在のモジュール一覧に %s が見つかりませんでした。"

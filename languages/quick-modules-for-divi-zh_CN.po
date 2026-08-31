@@ -1,0 +1,49 @@
+# Quick Modules for Divi - Chinese (Simplified)
+# Copyright (C) 2026 ALP Plugins
+# This file is distributed under the GPLv2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Quick Modules for Divi 1.0.1\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Domain: quick-modules-for-divi\n"
+
+msgid "Favorites"
+msgstr "收藏"
+
+msgid "Recent"
+msgstr "最近使用"
+
+msgid "No favorites yet. Click a star to add one."
+msgstr "还没有收藏。点击星标即可添加。"
+
+msgid "Recently used modules will appear here."
+msgstr "最近使用的模块将显示在这里。"
+
+msgid "Add to favorites"
+msgstr "添加到收藏"
+
+msgid "Remove from favorites"
+msgstr "从收藏中移除"
+
+#. translators: %s: Divi module name.
+msgid "%s added to Favorites."
+msgstr "已将 %s 添加到收藏。"
+
+#. translators: %s: Divi module name.
+msgid "%s removed from Favorites."
+msgstr "已从收藏中移除 %s。"
+
+#. translators: %s: Divi module name.
+msgid "Remove %s from favorites"
+msgstr "从收藏中移除 %s"
+
+msgid "Drag to reorder"
+msgstr "拖动以重新排序"
+
+#. translators: %s: Divi module name.
+msgid "Could not find %s in the current module list."
+msgstr "在当前模块列表中找不到 %s。"

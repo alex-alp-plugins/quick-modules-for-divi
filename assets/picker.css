@@ -2,8 +2,8 @@
 
 @media (min-width: 620px) {
   .alp-dqm-modal {
-    width: min(600px, calc(100vw - 24px)) !important;
-    max-width: min(600px, calc(100vw - 24px)) !important;
+    width: min(var(--alp-dqm-modal-width, 600px), calc(100vw - 24px)) !important;
+    max-width: min(var(--alp-dqm-modal-width, 600px), calc(100vw - 24px)) !important;
     /* Divi can animate dialog dimensions when they change after mount.
      * Quick Modules primes this class in the same mutation cycle in which the
      * module picker is created, so disabling the width transition prevents a
@@ -558,4 +558,28 @@
 .alp-dqm-recent-shortcut .alp-dqm-clock-svg {
   width: 12px;
   height: 12px;
+}
+
+
+/* v1.0.1 RC9: responsive module picker sizing based on Divi's preview width control. */
+.alp-dqm-modal[data-alp-dqm-compact="1"] .alp-dqm-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.alp-dqm-modal[data-alp-dqm-compact="1"] .alp-dqm-panel {
+  padding: 7px;
+}
+
+.alp-dqm-modal[data-alp-dqm-compact="1"] .alp-dqm-tabs {
+  flex-wrap: wrap;
+}
+
+.alp-dqm-modal[data-alp-dqm-compact="1"] .alp-dqm-shortcut {
+  min-height: 34px;
+}
+
+@media (max-width: 430px) {
+  .alp-dqm-modal[data-alp-dqm-compact="1"] .alp-dqm-list {
+    grid-template-columns: 1fr;
+  }
 }
