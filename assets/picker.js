@@ -60,8 +60,17 @@
     const savedSchemaVersion = Number(cfg.schemaVersionSaved || 0);
     const rawFavorites = Array.isArray(cfg.favorites) ? cfg.favorites.slice() : [];
     const rawRecent = Array.isArray(cfg.recent) ? cfg.recent.slice() : [];
-    let migratedFavorites = cleanStoredList(rawFavorites);
-    const migratedRecent = cleanStoredList(rawRecent);
+    const canonicalizeStoredList = (items) => {
+      const stable = [];
+      cleanStoredList(items).forEach((item) => {
+        const name = getCanonicalLegacyModuleName(item);
+        if (name && !stable.includes(name)) stable.push(name);
+      });
+      return stable;
+    };
+
+    let migratedFavorites = canonicalizeStoredList(rawFavorites);
+    const migratedRecent = canonicalizeStoredList(rawRecent);
 
     if (savedSchemaVersion < 3 && migratedFavorites.length > 1) {
       migratedFavorites = migratedFavorites.reverse();
@@ -80,6 +89,7 @@
       suppressNextShortcutClick: false,
       quickUiBound: false,
       launchLocked: false,
+      localizedLabels: Object.create(null),
     };
 
     function format(template, value) {
@@ -236,30 +246,83 @@
       return foldText(value || '').replace(/[^a-z0-9\u00c0-\u024f\u0400-\u04ff\u0600-\u06ff\u0900-\u097f\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]+/gi, '');
     }
 
+    function getCanonicalLegacyModuleName(name) {
+      const normalized = normalize(name);
+      const key = foldText(normalized);
+      const reverse = {
+        // French labels that may have been persisted by earlier versions.
+        bouton: 'Button',
+        resume: 'Blurb',
+        groupe: 'Group',
+        texte: 'Text',
+        accordeon: 'Accordion',
+        'carrousel groupe': 'Group Carousel',
+        galerie: 'Gallery',
+        // Spanish labels. These also make a later language switch seamless.
+        boton: 'Button',
+        grupo: 'Group',
+        texto: 'Text',
+        imagen: 'Image',
+        acordeon: 'Accordion',
+        'carrusel agrupado': 'Group Carousel',
+        resumen: 'Blurb',
+        galeria: 'Gallery',
+      };
+      return reverse[key] || normalized;
+    }
+
     function getBuiltinModuleAliases(name) {
       const locale = getLocaleBase();
-      const normalizedName = normalize(name);
+      const canonical = getCanonicalLegacyModuleName(name);
 
-      // Divi has a few legacy/core module translations whose visible builder
-      // label does not always resolve through WordPress' server-side gettext
-      // calls. Keep this list deliberately tiny and only for verified native
-      // module names where a third-party module can otherwise be a dangerous
-      // false match (for example Divi Supreme's Advanced Blurb).
+      // Verified fallbacks for labels that may not be available from Divi's
+      // gettext catalog during the first picker render. Keep this deliberately
+      // conservative so a third-party module can never be mistaken for core Divi.
       const localized = {
         fr: {
           Blurb: ['Résumé', 'Resume'],
+          Button: ['Bouton'],
+          Group: ['Groupe'],
+          Text: ['Texte'],
+          Accordion: ['Accordéon', 'Accordeon'],
+          'Group Carousel': ['Carrousel Groupe'],
+          Gallery: ['Galerie'],
+        },
+        es: {
+          Button: ['Botón', 'Boton'],
+          Group: ['Grupo'],
+          Text: ['Texto'],
+          Image: ['Imagen'],
+          Accordion: ['Acordeón', 'Acordeon'],
+          'Group Carousel': ['Carrusel Agrupado'],
+          Blurb: ['Resumen'],
+          Gallery: ['Galería', 'Galeria'],
         },
       };
 
-      const aliases = localized[locale] && localized[locale][normalizedName];
+      const aliases = localized[locale] && localized[locale][canonical];
       return Array.isArray(aliases) ? aliases.slice() : [];
     }
 
     function getModuleAliasCandidates(name) {
-      const candidates = [normalize(name)];
+      const normalized = normalize(name);
+      const canonical = getCanonicalLegacyModuleName(normalized);
+      const candidates = [];
+      [normalized, canonical].forEach((candidate) => {
+        if (candidate && !candidates.includes(candidate)) candidates.push(candidate);
+      });
+
       const source = cfg.moduleAliases && typeof cfg.moduleAliases === 'object' ? cfg.moduleAliases : {};
-      const aliases = source[name] || source[normalize(name)] || [];
-      (Array.isArray(aliases) ? aliases : [aliases]).concat(getBuiltinModuleAliases(name)).forEach((alias) => {
+      const sourceAliases = [];
+      [name, normalized, canonical].forEach((key) => {
+        const value = source[key];
+        (Array.isArray(value) ? value : [value]).forEach((alias) => {
+          alias = normalize(alias);
+          if (alias && !sourceAliases.includes(alias)) sourceAliases.push(alias);
+        });
+      });
+
+      sourceAliases.concat(getBuiltinModuleAliases(canonical)).forEach((alias) => {
         alias = normalize(alias);
         if (alias && !candidates.includes(alias)) candidates.push(alias);
       });
@@ -267,15 +330,19 @@
     }
 
     function getModuleSearchTerms(name) {
-      const aliases = getModuleAliasCandidates(name);
       const original = normalize(name);
+      const canonical = getCanonicalLegacyModuleName(original);
+      const aliases = getModuleAliasCandidates(canonical || original);
       if (getLocaleBase() === 'en') return aliases;
 
-      // In a translated Divi UI, search the localized native label first. This
-      // prevents a stored English favorite such as "Blurb" from narrowing the
-      // list to a third-party "Advanced Blurb" before the native "Résumé" tile
-      // can be resolved.
-      return aliases.filter((alias) => foldText(alias) !== foldText(original)).concat([original]);
+      // Search the current localized label first, then the stable English source
+      // label. Divi's search commonly accepts the source label even when the tile
+      // itself is translated, while the exact localized alias avoids collisions
+      // such as Blurb vs Advanced Blurb.
+      return aliases
+        .filter((alias) => foldText(alias) !== foldText(canonical))
+        .concat(canonical ? [canonical] : [], original && original !== canonical ? [original] : [])
+        .filter((value, index, list) => value && list.indexOf(value) === index);
     }
 
     function getCardIdentityTokens(el) {
@@ -313,9 +380,48 @@
       return Array.from(tokens).filter(Boolean);
     }
 
+    function getStableStoredNameForCard(el, visibleName) {
+      const visibleCanonical = getCanonicalLegacyModuleName(visibleName);
+      if (!(el instanceof HTMLElement)) return visibleCanonical;
+
+      // Prefer Divi's legacy/core slug when it is present. Third-party extensions
+      // use their own prefixes, so an exact et_pb_* slug is a much safer identity
+      // than the translated visible label.
+      const coreNames = {
+        text: 'Text',
+        image: 'Image',
+        button: 'Button',
+        blurb: 'Blurb',
+        gallery: 'Gallery',
+        accordion: 'Accordion',
+        audio: 'Audio',
+        code: 'Code',
+        slider: 'Slider',
+        video_slider: 'Video Slider',
+        contact_form: 'Contact Form',
+        email_optin: 'Email Optin',
+        bar_counters: 'Bar Counters',
+        countdown_timer: 'Countdown Timer',
+      };
+
+      const nodes = [el].concat(Array.from(el.querySelectorAll('*')).slice(0, 48));
+      for (const node of nodes) {
+        if (!(node instanceof Element)) continue;
+        for (const attr of Array.from(node.attributes || [])) {
+          const value = String(attr.value || '').toLowerCase();
+          const match = value.match(/(?:^|[^a-z0-9])et[_-]pb[_-]([a-z0-9_-]{2,80})/i);
+          if (!match) continue;
+          const slug = match[1].replace(/-/g, '_');
+          if (coreNames[slug]) return coreNames[slug];
+        }
+      }
+
+      return visibleCanonical;
+    }
+
     function cardIdentityScore(card, requestedName) {
       if (!card || !(card.el instanceof HTMLElement)) return 0;
-      const wanted = compactToken(requestedName);
+      const wanted = compactToken(getCanonicalLegacyModuleName(requestedName));
       if (!wanted || wanted.length < 2) return 0;
 
       let best = 0;
@@ -396,6 +502,11 @@
       };
 
       const localeTokens = tokens[getLocaleBase()] || [];
+      // Divi currently leaves the module-search placeholder in English in some
+      // translated builder locales (for example Spanish and French). Treat the
+      // English word as a valid module-search signal for every locale, then add
+      // the locale-specific tokens as extra signals.
+      if (haystack.includes('module')) return true;
       return localeTokens.some((token) => haystack.includes(foldText(token)));
     }
 
@@ -502,6 +613,101 @@
       return lefts.length >= 2 && tops.length >= 2;
     }
 
+    function headerLooksLikeModulePicker(header) {
+      if (!(header instanceof HTMLElement)) return false;
+      const text = foldText(header.innerText || header.textContent || '');
+      if (!text) return false;
+
+      // English remains the source UI and is also used by Divi for some strings
+      // even when the rest of the builder is translated.
+      if (/insert\s+(?:a\s+)?module(?:\s+or\s+row)?/i.test(text)) return true;
+
+      const locale = getLocaleBase();
+      const patterns = {
+        fr: [/inserer\s+(?:un\s+)?module/i],
+        es: [/insertar\s+(?:un\s+)?modulo/i],
+        pt: [/inserir\s+(?:um\s+)?modulo/i],
+        de: [/modul\s+einfugen/i, /einfugen.*modul/i],
+        it: [/inserisci\s+(?:un\s+)?modulo/i],
+        nl: [/module\s+invoegen/i, /voeg.*module/i],
+        pl: [/wstaw.*modul/i],
+        ru: [/встав.*модул/i],
+        tr: [/modul.*ekle/i, /ekle.*modul/i],
+        id: [/sisipkan.*modul/i, /tambah.*modul/i],
+        ja: [/モジュール.*挿入/i, /モジュール.*追加/i],
+        ko: [/모듈.*삽입/i, /모듈.*추가/i],
+        zh: [/插入.*模[块組]/i, /添加.*模[块組]/i],
+        ar: [/إدراج.*وحدة/i, /إضافة.*وحدة/i],
+        hi: [/मॉड्यूल.*(?:डाल|जोड़|सम्मिलित)/i],
+      };
+
+      return (patterns[locale] || []).some((pattern) => pattern.test(text));
+    }
+
+    function headerHasCloseControl(header) {
+      if (!(header instanceof HTMLElement)) return false;
+      const headerRect = header.getBoundingClientRect();
+      return Array.from(header.querySelectorAll('button, [role="button"], [tabindex], [class*="close" i], svg')).some((control) => {
+        if (!(control instanceof Element)) return false;
+        const target = control instanceof HTMLElement ? control : control.parentElement;
+        if (!(target instanceof HTMLElement)) return false;
+        const rect = target.getBoundingClientRect();
+        if (rect.width < 12 || rect.width > 96 || rect.height < 12 || rect.height > 96) return false;
+        return rect.top >= headerRect.top - 6
+          && rect.bottom <= headerRect.bottom + 16
+          && rect.right >= headerRect.right - Math.min(130, headerRect.width * 0.30);
+      });
+    }
+
+    function getModalHeaders(root) {
+      if (!(root instanceof Element)) return [];
+      return Array.from(root.querySelectorAll('.et-vb-modal-header, [class*="et-vb-modal-header"], [class*="modal-header"]'))
+        .filter((header) => header instanceof HTMLElement && headerLooksLikeModulePicker(header));
+    }
+
+    function findAnchoredModuleModal() {
+      const inputs = Array.from(document.querySelectorAll('input[type="search"], input[placeholder], input[aria-label]'));
+
+      for (const input of inputs) {
+        if (!(input instanceof HTMLInputElement) || !hasLocalizedModuleSearchSignal(input)) continue;
+        const inputRect = input.getBoundingClientRect();
+        if (inputRect.width < 180 || inputRect.height < 20) continue;
+        if (inputRect.bottom <= 0 || inputRect.right <= 0 || inputRect.top >= window.innerHeight || inputRect.left >= window.innerWidth) continue;
+
+        // The safest identity for Divi's picker is the nearest common ancestor of
+        // its module-search input and its standard modal header. This is stable
+        // across translations and, unlike the old smallest-area heuristic, cannot
+        // jump to an inner result wrapper while React virtualizes the list.
+        let node = input.parentElement;
+        let depth = 0;
+        while (node && node !== document.body && depth < 18) {
+          if (node instanceof HTMLElement) {
+            const rect = node.getBoundingClientRect();
+            if (rect.width >= 280 && rect.height >= 260) {
+              const headers = getModalHeaders(node);
+              const header = headers.find((candidate) => {
+                if (!headerHasCloseControl(candidate)) return false;
+                const hr = candidate.getBoundingClientRect();
+                return hr.top >= rect.top - 8
+                  && hr.top <= rect.top + Math.min(140, rect.height * 0.25)
+                  && hr.left >= rect.left - 8
+                  && hr.right <= rect.right + 8;
+              });
+
+              if (header) {
+                node.dataset.alpDqmModalAnchor = 'header-search';
+                return node;
+              }
+            }
+          }
+          node = node.parentElement;
+          depth += 1;
+        }
+      }
+
+      return null;
+    }
+
     function findBestModal(candidates, matcher) {
       let best = null;
       let bestArea = Infinity;
@@ -522,23 +728,35 @@
     }
 
     function findModal() {
+      // Primary path for Divi 5.11+: use the real add-module shell itself.
+      // This is the element that owns the background, header, tabs and scroll
+      // viewport. Keeping Quick Modules anchored here prevents an inner wrapper
+      // from becoming the sizing reference.
+      const nativeShell = getNativeAddModuleShell(null);
+      if (nativeShell) {
+        const nativeSearch = getSearchInput(nativeShell);
+        if (nativeSearch instanceof HTMLInputElement && hasLocalizedModuleSearchSignal(nativeSearch)) {
+          return nativeShell;
+        }
+      }
+
+      // Fallback for older/different Divi builds.
+      const anchoredModal = findAnchoredModuleModal();
+      if (anchoredModal) return anchoredModal;
+
       const candidates = Array.from(document.querySelectorAll('[role="dialog"], body > div, body *'));
 
-      // On an English Divi UI there is no reason to run the structural fallback.
-      // Doing so after the Insert Module modal closed was the root cause of the
-      // severe bug where Favorites/Recent appeared inside module settings panels.
+      // Backward-compatible English fallback for older/different Divi builds.
       const englishModal = findBestModal(candidates, looksLikeEnglishModuleModal);
       if (isEnglishUi()) return englishModal;
       if (englishModal) return englishModal;
 
-      // Prefer a positive localized title/search match for supported languages.
-      // This is safer than relying only on layout heuristics and fixes fully
-      // translated Divi interfaces such as French ("Insérer un module...").
+      // If the current translated Divi build does not expose the standard modal
+      // header classes, retain the positive localized detector before the final
+      // hardened structural fallback.
       const localizedModal = findBestModal(candidates, looksLikeKnownLocalizedModuleModal);
       if (localizedModal) return localizedModal;
 
-      // Last resort for translated/unsupported Divi locales: use the hardened
-      // structural detector.
       return findBestModal(candidates, looksLikeTranslatedModuleModal);
     }
 
@@ -554,9 +772,10 @@
       });
 
       if (root instanceof HTMLElement) {
-        root.classList.remove('alp-dqm-modal', 'alp-dqm-theme-light', 'alp-dqm-theme-dark', 'alp-dqm-compact', 'alp-dqm-is-narrow', 'alp-dqm-is-xnarrow');
+        root.classList.remove('alp-dqm-modal', 'alp-dqm-host', 'alp-dqm-theme-light', 'alp-dqm-theme-dark', 'alp-dqm-compact', 'alp-dqm-is-narrow', 'alp-dqm-is-xnarrow');
         delete root.dataset.alpDqmTheme;
         delete root.dataset.alpDqmPreviewWidth;
+        delete root.dataset.alpDqmModalAnchor;
         root.style.removeProperty('--alp-dqm-compact-width');
         root.style.removeProperty('width');
         root.style.removeProperty('max-width');
@@ -568,7 +787,7 @@
         if (!activeModal || !activeModal.contains(ui)) ui.remove();
       });
 
-      document.querySelectorAll('.alp-dqm-modal').forEach((modal) => {
+      document.querySelectorAll('.alp-dqm-host, .alp-dqm-modal').forEach((modal) => {
         if (modal !== activeModal) resetElementEnhancements(modal);
       });
 
@@ -618,6 +837,8 @@
     function getModuleCards(modal) {
       if (!modal) return [];
       const modalRect = modal.getBoundingClientRect();
+      const searchInput = getSearchInput(modal);
+      const searchRect = searchInput instanceof HTMLElement ? searchInput.getBoundingClientRect() : null;
       const all = Array.from(modal.querySelectorAll('button, [role="button"], [tabindex], div'));
       const seen = new Set();
       const cards = [];
@@ -630,6 +851,7 @@
         if (/Search for a module/i.test(text)) continue;
 
         const r = el.getBoundingClientRect();
+        if (searchRect && r.top <= searchRect.bottom - 4) continue;
         if (r.width < 70 || r.width > Math.min(250, modalRect.width * 0.52)) continue;
         if (r.height < 48 || r.height > 180) continue;
         if (r.left < modalRect.left - 2 || r.right > modalRect.right + 2) continue;
@@ -660,7 +882,8 @@
 
     function findCardByName(modal, name) {
       const cards = getModuleCards(modal);
-      const aliases = getModuleAliasCandidates(name);
+      const canonicalName = getCanonicalLegacyModuleName(name);
+      const aliases = getModuleAliasCandidates(canonicalName || name);
       const foldedAliases = aliases.map((alias) => foldText(alias));
 
       // First choice: exact visible label, including a Divi-provided localized
@@ -675,7 +898,7 @@
       let best = null;
       let bestScore = 0;
       cards.forEach((card) => {
-        let score = cardIdentityScore(card, name);
+        let score = Math.max(cardIdentityScore(card, name), cardIdentityScore(card, canonicalName));
         aliases.forEach((alias) => {
           score = Math.max(score, cardIdentityScore(card, alias), labelSimilarityScore(card.name, alias));
         });
@@ -717,7 +940,7 @@
     }
 
     function addRecent(name) {
-      name = normalize(name).replace(/\s*[★☆]+\s*$/g, '').trim();
+      name = getCanonicalLegacyModuleName(normalize(name).replace(/\s*[★☆]+\s*$/g, '').trim());
       if (!name) return;
 
       const next = [name].concat(state.recent.filter((item) => item !== name)).slice(0, Number(cfg.maxRecent) || 8);
@@ -745,17 +968,17 @@
     }
 
     function removeFavorite(name) {
-      name = normalize(name);
+      name = getCanonicalLegacyModuleName(normalize(name));
       if (!name || !state.favorites.includes(name)) return;
 
       state.favorites = state.favorites.filter((item) => item !== name);
       save();
       enhanceModal(state.modal);
-      showFeedback(format(cfg.strings.removedFavorite, name), 'error');
+      showFeedback(format(cfg.strings.removedFavorite, getLocalizedDisplayName(name)), 'error');
     }
 
     function toggleFavorite(name) {
-      name = normalize(name);
+      name = getCanonicalLegacyModuleName(normalize(name));
       if (!name) return;
 
       if (state.favorites.includes(name)) {
@@ -767,7 +990,7 @@
       state.activeQuickTab = 'favorites';
       save();
       enhanceModal(state.modal);
-      showFeedback(format(cfg.strings.addedFavorite, name), 'success');
+      showFeedback(format(cfg.strings.addedFavorite, getLocalizedDisplayName(name)), 'success');
     }
 
     function reorderFavorite(sourceName, targetName, placeAfter) {
@@ -853,7 +1076,7 @@
       const target = getActivationTarget(card);
       if (!(target instanceof HTMLElement)) return false;
 
-      addRecent(name);
+      addRecent(getStableStoredNameForCard(card.el, name));
       return dispatchDiviActivation(target);
     }
 
@@ -912,6 +1135,29 @@
       }
     }
 
+    function getLocalizedDisplayName(name) {
+      const canonical = getCanonicalLegacyModuleName(name);
+      if (!canonical) return normalize(name);
+
+      if (state.localizedLabels[canonical]) return state.localizedLabels[canonical];
+
+      const builtin = getBuiltinModuleAliases(canonical);
+      if (builtin.length) return builtin[0];
+
+      const aliases = getModuleAliasCandidates(canonical);
+      const currentAlias = aliases.find((alias) => foldText(alias) !== foldText(canonical));
+      return currentAlias || canonical;
+    }
+
+    function getStoredFavoriteForCard(cardName, el) {
+      const stableCardName = getStableStoredNameForCard(el, cardName);
+      const foldedCard = foldText(cardName);
+      return state.favorites.find((storedName) => {
+        if (getCanonicalLegacyModuleName(storedName) === stableCardName) return true;
+        return getModuleAliasCandidates(storedName).some((alias) => foldText(alias) === foldedCard);
+      }) || '';
+    }
+
     function makeFavoriteShortcut(name) {
       const item = document.createElement('div');
       item.className = 'alp-dqm-shortcut alp-dqm-favorite-shortcut';
@@ -919,7 +1165,8 @@
       item.dataset.alpDqmAction = 'launch-favorite';
       item.setAttribute('role', 'button');
       item.setAttribute('tabindex', '0');
-      item.setAttribute('aria-label', name);
+      const displayName = getLocalizedDisplayName(name);
+      item.setAttribute('aria-label', displayName);
 
       const handle = document.createElement('span');
       handle.className = 'alp-dqm-drag-handle';
@@ -930,7 +1177,7 @@
 
       const label = document.createElement('span');
       label.className = 'alp-dqm-shortcut-label';
-      label.textContent = name;
+      label.textContent = displayName;
 
       const remove = document.createElement('button');
       remove.type = 'button';
@@ -938,7 +1185,7 @@
       remove.dataset.alpDqmAction = 'remove-favorite';
       remove.dataset.alpDqmName = name;
       remove.textContent = '★';
-      remove.title = format(cfg.strings.removeFavoriteNamed || 'Remove %s from favorites', name);
+      remove.title = format(cfg.strings.removeFavoriteNamed || 'Remove %s from favorites', displayName);
       remove.setAttribute('aria-label', remove.title);
 
       item.appendChild(handle);
@@ -959,7 +1206,8 @@
       button.className = 'alp-dqm-shortcut alp-dqm-recent-shortcut';
       button.dataset.alpDqmAction = 'launch-recent';
       button.dataset.alpDqmName = name;
-      button.title = name;
+      const displayName = getLocalizedDisplayName(name);
+      button.title = displayName;
 
       const icon = document.createElement('span');
       icon.className = 'alp-dqm-shortcut-icon';
@@ -968,7 +1216,7 @@
 
       const label = document.createElement('span');
       label.className = 'alp-dqm-shortcut-label';
-      label.textContent = name;
+      label.textContent = displayName;
 
       button.appendChild(icon);
       button.appendChild(label);
@@ -1095,39 +1343,103 @@
       return matches[0].value;
     }
 
+    function getNativeAddModuleShell(modal) {
+      const selector = '.et-vb-modal.et-vb-modal--main.et-vb-modal--add-module';
+
+      if (modal instanceof HTMLElement) {
+        if (modal.matches(selector)) return modal;
+        const ancestor = modal.closest(selector);
+        if (ancestor instanceof HTMLElement) return ancestor;
+      }
+
+      const search = modal instanceof HTMLElement ? getSearchInput(modal) : null;
+      if (search instanceof HTMLElement) {
+        const ancestor = search.closest(selector);
+        if (ancestor instanceof HTMLElement) return ancestor;
+      }
+
+      const shells = Array.from(document.querySelectorAll(selector));
+      return shells.find((shell) => {
+        if (!(shell instanceof HTMLElement)) return false;
+        const rect = shell.getBoundingClientRect();
+        const style = getComputedStyle(shell);
+        return style.display !== 'none'
+          && style.visibility !== 'hidden'
+          && rect.width > 280
+          && rect.height > 260
+          && rect.bottom > 0
+          && rect.right > 0
+          && rect.top < window.innerHeight
+          && rect.left < window.innerWidth;
+      }) || null;
+    }
+
     function syncPreviewModalWidth(modal) {
       if (!(modal instanceof HTMLElement)) return;
+
       const previewWidth = getDiviPreviewWidth();
       modal.dataset.alpDqmPreviewWidth = previewWidth === null ? '' : String(previewWidth);
 
-      let modalWidth = 600;
-      let compact = false;
+      const nativeShell = getNativeAddModuleShell(modal);
+      if (!(nativeShell instanceof HTMLElement)) return;
 
-      // Divi's 484px value is the canvas preview width, not the browser viewport.
-      // For phone-sized previews we intentionally use a comfortable 500px picker.
-      if (previewWidth !== null && previewWidth <= 520) {
-        modalWidth = 500;
-        compact = true;
-      } else if (previewWidth !== null && previewWidth <= 900) {
-        modalWidth = 550;
-        compact = true;
+      // Divi 5.11.1 keeps some internal picker wrappers at their own geometry.
+      // The reliable fix is to size the real native dialog shell, exactly like
+      // the manual DevTools rule that fixes the overflow. Never size an inferred
+      // inner wrapper.
+      let desiredWidth = 600;
+      if (previewWidth !== null && previewWidth <= 520) desiredWidth = 500;
+      else if (previewWidth !== null && previewWidth <= 900) desiredWidth = 550;
+
+      // A genuinely narrow browser window still wins over the builder preview.
+      const viewportCap = Math.max(300, Math.floor(window.innerWidth - 24));
+      const finalWidth = Math.min(desiredWidth, viewportCap);
+
+      nativeShell.style.setProperty('width', finalWidth + 'px', 'important');
+      nativeShell.style.setProperty('max-width', finalWidth + 'px', 'important');
+      nativeShell.style.removeProperty('--alp-dqm-compact-width');
+      nativeShell.style.setProperty('--alp-dqm-modal-width', finalWidth + 'px');
+
+      // Never leave width on a fallback/inner host from an older RC.
+      if (modal !== nativeShell) {
+        modal.style.removeProperty('width');
+        modal.style.removeProperty('max-width');
+        modal.style.removeProperty('--alp-dqm-modal-width');
+        modal.style.removeProperty('--alp-dqm-compact-width');
       }
 
-      modal.style.setProperty('--alp-dqm-modal-width', modalWidth + 'px');
-      // Inline important values are a final safeguard against Divi's own dialog sizing.
-      modal.style.setProperty('width', 'min(' + modalWidth + 'px, calc(100vw - 24px))', 'important');
-      modal.style.setProperty('max-width', 'min(' + modalWidth + 'px, calc(100vw - 24px))', 'important');
-      modal.dataset.alpDqmCompact = compact ? '1' : '0';
+      nativeShell.dataset.alpDqmCompact = finalWidth < 560 ? '1' : '0';
+      nativeShell.dataset.alpDqmXCompact = finalWidth < 430 ? '1' : '0';
+      modal.dataset.alpDqmCompact = nativeShell.dataset.alpDqmCompact;
+      modal.dataset.alpDqmXCompact = nativeShell.dataset.alpDqmXCompact;
     }
 
     function syncUiWidth(modal, ui) {
       syncPreviewModalWidth(modal);
-      const searchBlock = getSearchBlock(modal);
-      if (!searchBlock || !ui) return;
-      const rect = searchBlock.getBoundingClientRect();
-      if (rect.width > 250) {
-        ui.style.width = Math.floor(rect.width) + 'px';
-        ui.style.maxWidth = Math.floor(rect.width) + 'px';
+      if (!(ui instanceof HTMLElement)) return;
+
+      const shell = getNativeAddModuleShell(modal);
+      const searchInput = shell instanceof HTMLElement ? getSearchInput(shell) : getSearchInput(modal);
+      let targetWidth = 0;
+
+      if (shell instanceof HTMLElement && searchInput instanceof HTMLElement) {
+        const shellRect = shell.getBoundingClientRect();
+        const inputRect = searchInput.getBoundingClientRect();
+        let inset = Math.round(inputRect.left - shellRect.left);
+        if (!Number.isFinite(inset) || inset < 8 || inset > 48) inset = 16;
+        targetWidth = Math.floor(shellRect.width - (inset * 2));
+      }
+
+      if (targetWidth < 250 && shell instanceof HTMLElement) {
+        targetWidth = Math.floor(shell.getBoundingClientRect().width - 32);
+      }
+
+      if (targetWidth > 250) {
+        ui.style.width = targetWidth + 'px';
+        ui.style.maxWidth = targetWidth + 'px';
+        ui.style.minWidth = '0';
+        ui.dataset.alpDqmCompact = targetWidth < 520 ? '1' : '0';
+        ui.dataset.alpDqmXCompact = targetWidth < 360 ? '1' : '0';
       }
     }
 
@@ -1306,10 +1618,14 @@
         el.dataset.alpDqmName = name;
         el.classList.add('alp-dqm-card');
 
+        const stableName = getStableStoredNameForCard(el, name);
+        if (stableName && name) state.localizedLabels[stableName] = name;
+
         const existingStars = Array.from(el.querySelectorAll(':scope > .alp-dqm-star'));
         let star = existingStars.shift() || null;
         existingStars.forEach((extra) => extra.remove());
-        const active = state.favorites.includes(name);
+        const storedFavorite = getStoredFavoriteForCard(name, el);
+        const active = !!storedFavorite;
 
         if (!star) {
           star = document.createElement('button');
@@ -1319,7 +1635,7 @@
           el.appendChild(star);
         }
 
-        star.dataset.alpDqmFavorite = name;
+        star.dataset.alpDqmFavorite = storedFavorite || stableName || name;
         star.classList.toggle('is-active', active);
         star.setAttribute('aria-label', active ? cfg.strings.unfavorite : cfg.strings.favorite);
         star.setAttribute('aria-pressed', active ? 'true' : 'false');
@@ -1334,7 +1650,12 @@
       // Previously this class was first added inside requestAnimationFrame(), which
       // allowed Divi's native narrower dialog to be visible for a frame and made the
       // picker appear to grow / show a transparent strip on the right.
-      modal.classList.add('alp-dqm-modal');
+      // Never reuse the legacy class. Older Quick Modules styles associated
+      // .alp-dqm-modal with a forced dialog width. Keeping the class alive can
+      // resurrect that width from browser/proxy cache even after the current
+      // stylesheet stops defining it.
+      modal.classList.remove('alp-dqm-modal');
+      modal.classList.add('alp-dqm-host');
       syncPreviewModalWidth(modal);
       return modal;
     }
@@ -1346,8 +1667,25 @@
     function enhanceModal(modal) {
       modal = primeModal(modal);
       if (!modal) return;
-      renderQuickUI(modal);
+      // Learn the current Divi-localized labels first, then render Favorites and
+      // Recent. This prevents a previously saved French/Spanish label from being
+      // shown for one frame after the builder language changes.
       decorateCards(modal);
+      renderQuickUI(modal);
+    }
+
+    let activeRefreshQueued = false;
+    function refreshActiveModalCards() {
+      if (activeRefreshQueued) return;
+      activeRefreshQueued = true;
+      requestAnimationFrame(() => {
+        activeRefreshQueued = false;
+        const modal = state.modal;
+        if (!modal || !document.contains(modal)) return;
+        primeModal(modal);
+        decorateCards(modal);
+        renderQuickUI(modal);
+      });
     }
 
     function scheduleEnhance() {
@@ -1518,6 +1856,26 @@
       scheduleEnhance();
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
+
+    // Divi virtualizes module tiles while scrolling/searching. Refresh only the
+    // already-confirmed active modal here; do not rerun findModal(), which was the
+    // source of the translated-UI width regression in earlier RC builds.
+    document.addEventListener('scroll', (event) => {
+      const modal = state.modal;
+      const target = event.target instanceof Element ? event.target : null;
+      if (modal && document.contains(modal) && (!target || target === document || modal.contains(target))) {
+        refreshActiveModalCards();
+      }
+    }, true);
+
+    document.addEventListener('input', (event) => {
+      const modal = state.modal;
+      const target = event.target instanceof HTMLInputElement ? event.target : null;
+      if (!modal || !target || !modal.contains(target) || target !== getSearchInput(modal)) return;
+      refreshActiveModalCards();
+      setTimeout(refreshActiveModalCards, 40);
+      setTimeout(refreshActiveModalCards, 120);
+    }, true);
 
     window.addEventListener('resize', scheduleEnhance, { passive: true });
 

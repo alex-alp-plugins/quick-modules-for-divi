@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Quick Modules for Divi
  * Description: Shows your favorite and recently used Divi modules at the top of the module picker for quick access.
- * Version: 1.0.3
+ * Version: 1.0.4
  * Author: ALP Plugins
  * Requires at least: 6.5
  * Requires PHP: 7.4
@@ -17,7 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class ALP_Divi_Quick_Modules {
-    const VERSION      = '1.0.3';
+    const VERSION       = '1.0.4';
+    const ASSET_VERSION = '1.0.4.12';
     const META_KEY     = '_alp_divi_module_picker_prefs'; // Kept for seamless migration from earlier versions.
     const NONCE_ACTION = 'alp_divi_quick_modules';
 
@@ -82,6 +83,41 @@ final class ALP_Divi_Quick_Modules {
         );
     }
 
+    private static function canonicalize_saved_module_name( $name ) {
+        $name = trim( (string) $name );
+
+        // Earlier releases stored the visible Divi module label. If a user later
+        // changed the builder language, those labels could remain in Favorites or
+        // Recent. Normalize only verified core labels back to Divi's English source
+        // name; third-party module labels are intentionally left untouched.
+        $known_localized_core_labels = array(
+            // French.
+            'Bouton'            => 'Button',
+            'Résumé'            => 'Blurb',
+            'Resume'            => 'Blurb',
+            'Groupe'            => 'Group',
+            'Texte'             => 'Text',
+            'Accordéon'         => 'Accordion',
+            'Accordeon'         => 'Accordion',
+            'Carrousel Groupe'  => 'Group Carousel',
+            'Galerie'           => 'Gallery',
+            // Spanish.
+            'Botón'             => 'Button',
+            'Boton'             => 'Button',
+            'Grupo'             => 'Group',
+            'Texto'             => 'Text',
+            'Imagen'            => 'Image',
+            'Acordeón'          => 'Accordion',
+            'Acordeon'          => 'Accordion',
+            'Carrusel Agrupado' => 'Group Carousel',
+            'Resumen'           => 'Blurb',
+            'Galería'           => 'Gallery',
+            'Galeria'           => 'Gallery',
+        );
+
+        return isset( $known_localized_core_labels[ $name ] ) ? $known_localized_core_labels[ $name ] : $name;
+    }
+
     private static function get_translated_module_aliases( $module_names ) {
         $aliases = array();
         $names   = array_values( array_unique( array_filter( array_map( 'strval', is_array( $module_names ) ? $module_names : array() ) ) ) );
@@ -95,20 +131,42 @@ final class ALP_Divi_Quick_Modules {
             $switched_locale = switch_to_user_locale( get_current_user_id() );
         }
 
+        // These are Divi's own loaded translation catalogs. We intentionally
+        // inspect them directly because $name is a previously saved module label,
+        // not a translatable string owned by this plugin. Using __()/translate()
+        // with a runtime string would violate WordPress i18n literal-string rules.
+        $translation_sets = array(
+            get_translations_for_domain( 'et_builder' ),
+            get_translations_for_domain( 'Divi' ),
+        );
+
         foreach ( $names as $name ) {
             $translated = array();
+            $canonical  = self::canonicalize_saved_module_name( $name );
 
-            // Divi's builder strings traditionally use the et_builder text domain.
-            // The theme domain is also checked as a compatibility fallback.
-            foreach ( array( 'et_builder', 'Divi' ) as $domain ) {
-                $candidate = translate( $name, $domain );
-                if ( is_string( $candidate ) && '' !== $candidate && $candidate !== $name && ! in_array( $candidate, $translated, true ) ) {
+            if ( $canonical !== $name ) {
+                $translated[] = $canonical;
+            }
+
+            foreach ( $translation_sets as $translations ) {
+                if ( ! is_object( $translations ) || ! method_exists( $translations, 'translate' ) ) {
+                    continue;
+                }
+
+                $candidate = $translations->translate( $canonical );
+                if ( is_string( $candidate ) && '' !== $candidate && $candidate !== $canonical && ! in_array( $candidate, $translated, true ) ) {
                     $translated[] = $candidate;
                 }
             }
 
             if ( ! empty( $translated ) ) {
+                // Keep both keys during migration. JavaScript immediately
+                // canonicalizes stored core labels, while this original-name key
+                // keeps older preferences usable during the same request.
                 $aliases[ $name ] = $translated;
+                if ( $canonical !== $name ) {
+                    $aliases[ $canonical ] = $translated;
+                }
             }
         }
 
@@ -158,14 +216,14 @@ final class ALP_Divi_Quick_Modules {
             $handle,
             $plugin_url . 'assets/picker.css',
             array(),
-            self::VERSION
+            self::ASSET_VERSION
         );
 
         wp_enqueue_script(
             $handle,
             $plugin_url . 'assets/picker.js',
             array(),
-            self::VERSION,
+            self::ASSET_VERSION,
             true
         );
 
@@ -209,7 +267,7 @@ final class ALP_Divi_Quick_Modules {
         \ET\Builder\VisualBuilder\Assets\PackageBuildManager::register_package_build(
             array(
                 'name'    => 'quick-modules-for-divi-theme-builder-app',
-                'version' => self::VERSION,
+                'version' => self::ASSET_VERSION,
                 'script'  => array(
                     'src'                => $plugin_url . 'assets/picker.js',
                     'deps'               => array(),

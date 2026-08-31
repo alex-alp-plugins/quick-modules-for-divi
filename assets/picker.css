@@ -1,21 +1,23 @@
 /* Quick Modules for Divi only runs inside the Visual Builder. */
 
-@media (min-width: 620px) {
-  .alp-dqm-modal {
-    width: min(var(--alp-dqm-modal-width, 600px), calc(100vw - 24px)) !important;
-    max-width: min(var(--alp-dqm-modal-width, 600px), calc(100vw - 24px)) !important;
-    /* Divi can animate dialog dimensions when they change after mount.
-     * Quick Modules primes this class in the same mutation cycle in which the
-     * module picker is created, so disabling the width transition prevents a
-     * one-frame narrow/transparent state before the final size is painted. */
-    transition-property: opacity, transform !important;
-  }
+/*
+ * Divi owns the native add-module dialog dimensions.
+ * Quick Modules intentionally does not force the dialog width: Divi 5.11+
+ * can change the native module grid geometry independently of the builder
+ * preview width, so shrinking the dialog from the plugin can make Divi's own
+ * columns overflow outside the painted modal background.
+ */
+.alp-dqm-host {
+  transition-property: opacity, transform !important;
 }
 
 .alp-dqm-ui {
   box-sizing: border-box;
-  margin: 0 0 8px;
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
+  margin: 0 0 8px;
+  overflow: hidden;
   font-family: inherit;
 }
 
@@ -99,6 +101,8 @@
   display: none;
   box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin-top: 7px;
   padding: 8px;
   border: 1px solid rgba(255, 255, 255, .08);
@@ -113,6 +117,8 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 1px;
 }
 
@@ -307,7 +313,7 @@
 
 /* v0.6.0: polished adaptive UI for Divi dark and light modes. */
 .alp-dqm-ui,
-.alp-dqm-modal {
+.alp-dqm-host {
   --alp-dqm-panel-border: rgba(255, 255, 255, .09);
   --alp-dqm-panel-bg: rgba(255, 255, 255, .035);
   --alp-dqm-tab-border: rgba(255, 255, 255, .10);
@@ -340,8 +346,8 @@
  * applied by JS after inspecting the visible picker surfaces and text colors.
  */
 .alp-dqm-ui.alp-dqm-theme-light,
-.alp-dqm-modal.alp-dqm-theme-light,
-.alp-dqm-modal[data-alp-dqm-theme="light"] .alp-dqm-ui {
+.alp-dqm-host.alp-dqm-theme-light,
+.alp-dqm-host[data-alp-dqm-theme="light"] .alp-dqm-ui {
   --alp-dqm-panel-border: #dce4ef;
   --alp-dqm-panel-bg: #f8fafc;
   --alp-dqm-tab-border: #d9e2ef;
@@ -481,7 +487,7 @@
 
 /* v0.6.1: semantic feedback colors + consistent remove affordance. */
 .alp-dqm-ui,
-.alp-dqm-modal {
+.alp-dqm-host {
   --alp-dqm-success-bg: #173928;
   --alp-dqm-success-border: rgba(72, 190, 124, .45);
   --alp-dqm-success-text: #bdf1d1;
@@ -494,8 +500,8 @@
 }
 
 .alp-dqm-ui.alp-dqm-theme-light,
-.alp-dqm-modal.alp-dqm-theme-light,
-.alp-dqm-modal[data-alp-dqm-theme="light"] .alp-dqm-ui {
+.alp-dqm-host.alp-dqm-theme-light,
+.alp-dqm-host[data-alp-dqm-theme="light"] .alp-dqm-ui {
   --alp-dqm-success-bg: #edf9f1;
   --alp-dqm-success-border: #b9e5c8;
   --alp-dqm-success-text: #237343;
@@ -562,24 +568,41 @@
 
 
 /* v1.0.1 RC9: responsive module picker sizing based on Divi's preview width control. */
-.alp-dqm-modal[data-alp-dqm-compact="1"] .alp-dqm-list {
+.alp-dqm-host[data-alp-dqm-compact="1"] .alp-dqm-list {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.alp-dqm-modal[data-alp-dqm-compact="1"] .alp-dqm-panel {
+.alp-dqm-host[data-alp-dqm-compact="1"] .alp-dqm-panel {
   padding: 7px;
 }
 
-.alp-dqm-modal[data-alp-dqm-compact="1"] .alp-dqm-tabs {
+.alp-dqm-host[data-alp-dqm-compact="1"] .alp-dqm-tabs {
   flex-wrap: wrap;
 }
 
-.alp-dqm-modal[data-alp-dqm-compact="1"] .alp-dqm-shortcut {
+.alp-dqm-host[data-alp-dqm-compact="1"] .alp-dqm-shortcut {
   min-height: 34px;
 }
 
 @media (max-width: 430px) {
-  .alp-dqm-modal[data-alp-dqm-compact="1"] .alp-dqm-list {
+  .alp-dqm-host[data-alp-dqm-compact="1"] .alp-dqm-list {
     grid-template-columns: 1fr;
   }
+}
+
+/* v1.0.4 RC10: adapt Quick Modules to Divi's native dialog width. */
+.alp-dqm-ui[data-alp-dqm-compact="1"] .alp-dqm-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.alp-dqm-ui[data-alp-dqm-compact="1"] .alp-dqm-tabs {
+  flex-wrap: wrap;
+}
+
+.alp-dqm-ui[data-alp-dqm-compact="1"] .alp-dqm-panel {
+  padding: 7px;
+}
+
+.alp-dqm-ui[data-alp-dqm-x-compact="1"] .alp-dqm-list {
+  grid-template-columns: 1fr;
 }

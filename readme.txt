@@ -4,7 +4,7 @@ Tags: divi, divi 5, favorite modules, recent modules, page builder
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,15 @@ No. Quick Modules for Divi includes no tracking, telemetry, remote API calls, or
 Quick Modules for Divi does not collect or transmit personal data. Favorite and recent module names are stored as WordPress user metadata in the site's own database. The plugin makes no remote requests and includes no analytics or telemetry.
 
 == Changelog ==
+
+= 1.0.4 =
+* Fix WordPress Plugin Check i18n errors caused by runtime module-name lookups.
+* Resolve saved Divi module labels through Divi's loaded translation catalogs without using low-level translate() with dynamic strings.
+* Restore the proven 1.0.3 picker detection, width, search, MutationObserver, and virtualized-scroll behavior to prevent the module picker from shrinking or losing favorite stars after scrolling/searching.
+* Migrate previously saved French/Spanish core labels such as Bouton, Galerie, Botón and Galería to stable Divi source names.
+* Display migrated Favorites and Recent items in the current Divi interface language while keeping third-party module names untouched.
+* Store stable core-module identities when Divi exposes an et_pb_* slug, reducing future cross-language preference issues.
+* Preserve the translated-interface and strict third-party collision protections introduced in 1.0.3.
 
 = 1.0.3 =
 * Fix fully translated Divi interfaces (including French) not loading Quick Modules.
