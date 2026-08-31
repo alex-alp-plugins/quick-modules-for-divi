@@ -150,7 +150,7 @@ Favorites and recent-module preferences remain inside your WordPress installatio
 
 ## 🧪 Current Version
 
-[![Latest Release](https://img.shields.io/github/v/release/alex-alp-plugins/quick-modules-for-divi?sort=semver&label=Version)](https://github.com/alex-alp-plugins/quick-modules-for-divi/releases/latest)
+[![Latest Version](https://img.shields.io/github/v/tag/alex-alp-plugins/quick-modules-for-divi?sort=semver&label=Version)](https://github.com/alex-alp-plugins/quick-modules-for-divi/releases/latest)
 
 ### 1.0.3
 
