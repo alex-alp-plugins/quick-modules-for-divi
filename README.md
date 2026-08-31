@@ -152,6 +152,13 @@ Favorites and recent-module preferences remain inside your WordPress installatio
 
 [![Latest Release](https://img.shields.io/github/v/release/alex-alp-plugins/quick-modules-for-divi?sort=semver&label=Version)](https://github.com/alex-alp-plugins/quick-modules-for-divi/releases/latest)
 
+### 1.0.3
+
+- Fixed Quick Modules not loading when Divi translations are enabled.
+- Improved translated module picker detection.
+- Added cross-language matching for favorites saved under a different Divi interface language.
+- Prevented native Divi modules from being confused with similarly named third-party modules.
+
 ### 1.0.2
 
 Maintenance and stability update.
