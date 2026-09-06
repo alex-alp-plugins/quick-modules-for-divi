@@ -776,9 +776,14 @@
         delete root.dataset.alpDqmTheme;
         delete root.dataset.alpDqmPreviewWidth;
         delete root.dataset.alpDqmModalAnchor;
+        delete root.dataset.alpDqmPlacementReady;
+        delete root.dataset.alpDqmUserMoved;
+        delete root.dataset.alpDqmTranslateX;
+        delete root.dataset.alpDqmTranslateY;
         root.style.removeProperty('--alp-dqm-compact-width');
         root.style.removeProperty('width');
         root.style.removeProperty('max-width');
+        root.style.removeProperty('translate');
       }
     }
 
@@ -1643,6 +1648,127 @@
       });
     }
 
+    function getModalDragHandle(modal) {
+      if (!(modal instanceof HTMLElement)) return null;
+      return modal.querySelector(':scope > .et-vb-modal-header, :scope > [class*="et-vb-modal-header"], .et-vb-modal-header');
+    }
+
+    function getModalTranslate(modal) {
+      if (!(modal instanceof HTMLElement)) return { x: 0, y: 0 };
+      const x = parseFloat(modal.dataset.alpDqmTranslateX || '0');
+      const y = parseFloat(modal.dataset.alpDqmTranslateY || '0');
+      return {
+        x: Number.isFinite(x) ? x : 0,
+        y: Number.isFinite(y) ? y : 0,
+      };
+    }
+
+    function applyModalTranslate(modal, x, y) {
+      if (!(modal instanceof HTMLElement)) return;
+      const safeX = Number.isFinite(x) ? Math.round(x) : 0;
+      const safeY = Number.isFinite(y) ? Math.round(y) : 0;
+      modal.dataset.alpDqmTranslateX = String(safeX);
+      modal.dataset.alpDqmTranslateY = String(safeY);
+      // Use the individual translate property so Divi keeps ownership of its
+      // transform/animation stack. This avoids rewriting native modal transforms.
+      modal.style.setProperty('translate', safeX + 'px ' + safeY + 'px', 'important');
+    }
+
+    function clampModalTranslate(modal, desiredX, desiredY, baseRect) {
+      if (!(modal instanceof HTMLElement)) return { x: desiredX, y: desiredY };
+      const current = getModalTranslate(modal);
+      const rect = baseRect || modal.getBoundingClientRect();
+      const rawLeft = rect.left - current.x;
+      const rawTop = rect.top - current.y;
+      const margin = 12;
+      const maxX = window.innerWidth - margin - rect.width - rawLeft;
+      const minX = margin - rawLeft;
+      const maxY = window.innerHeight - margin - Math.min(rect.height, window.innerHeight - (margin * 2)) - rawTop;
+      const minY = margin - rawTop;
+      return {
+        x: Math.min(Math.max(desiredX, minX), maxX),
+        y: Math.min(Math.max(desiredY, minY), Math.max(minY, maxY)),
+      };
+    }
+
+    function normalizeModalPlacement(modal) {
+      if (!(modal instanceof HTMLElement)) return;
+      if (modal.dataset.alpDqmPlacementReady === '1' || modal.dataset.alpDqmUserMoved === '1') return;
+
+      const rect = modal.getBoundingClientRect();
+      if (rect.width < 280 || rect.height < 180) return;
+
+      const viewportCenter = window.innerWidth / 2;
+      const modalCenter = rect.left + (rect.width / 2);
+      const deltaFromCenter = viewportCenter - modalCenter;
+      const threshold = Math.max(120, window.innerWidth * 0.10);
+
+      let desiredX = 0;
+      let desiredY = 0;
+
+      // Divi normally centers the add-module picker. Nested Add Element flows can
+      // pin it far to one side. Recenter only when it is clearly displaced so the
+      // standard picker position remains untouched.
+      if (Math.abs(deltaFromCenter) > threshold) desiredX = deltaFromCenter;
+
+      if (rect.top < 12) desiredY = 12 - rect.top;
+      else if (rect.top > window.innerHeight - 120) desiredY = Math.max(12, (window.innerHeight - Math.min(rect.height, window.innerHeight - 24)) / 2) - rect.top;
+
+      const clamped = clampModalTranslate(modal, desiredX, desiredY, rect);
+      applyModalTranslate(modal, clamped.x, clamped.y);
+      modal.dataset.alpDqmPlacementReady = '1';
+    }
+
+    function bindModalDragging(modal) {
+      if (!(modal instanceof HTMLElement) || modal.dataset.alpDqmDragBound === '1') return;
+      const handle = getModalDragHandle(modal);
+      if (!(handle instanceof HTMLElement)) return;
+
+      modal.dataset.alpDqmDragBound = '1';
+      modal.classList.add('alp-dqm-draggable');
+
+      handle.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        const target = event.target instanceof Element ? event.target : null;
+        if (target && target.closest('button, a, input, select, textarea, [role="button"], [contenteditable="true"], [class*="close" i]')) return;
+
+        const rect = modal.getBoundingClientRect();
+        const startTranslate = getModalTranslate(modal);
+        const startX = event.clientX;
+        const startY = event.clientY;
+        let moved = false;
+
+        modal.classList.add('alp-dqm-modal-dragging');
+        document.documentElement.classList.add('alp-dqm-dragging-active');
+
+        const onMove = (moveEvent) => {
+          const dx = moveEvent.clientX - startX;
+          const dy = moveEvent.clientY - startY;
+          if (!moved && Math.hypot(dx, dy) < 3) return;
+          moved = true;
+          moveEvent.preventDefault();
+
+          const desiredX = startTranslate.x + dx;
+          const desiredY = startTranslate.y + dy;
+          const clamped = clampModalTranslate(modal, desiredX, desiredY, rect);
+          applyModalTranslate(modal, clamped.x, clamped.y);
+        };
+
+        const onEnd = () => {
+          window.removeEventListener('pointermove', onMove, true);
+          window.removeEventListener('pointerup', onEnd, true);
+          window.removeEventListener('pointercancel', onEnd, true);
+          modal.classList.remove('alp-dqm-modal-dragging');
+          document.documentElement.classList.remove('alp-dqm-dragging-active');
+          if (moved) modal.dataset.alpDqmUserMoved = '1';
+        };
+
+        window.addEventListener('pointermove', onMove, { capture: true, passive: false });
+        window.addEventListener('pointerup', onEnd, true);
+        window.addEventListener('pointercancel', onEnd, true);
+      });
+    }
+
     function primeModal(modal) {
       if (!modal || !document.contains(modal)) return null;
 
@@ -1657,6 +1783,8 @@
       modal.classList.remove('alp-dqm-modal');
       modal.classList.add('alp-dqm-host');
       syncPreviewModalWidth(modal);
+      bindModalDragging(modal);
+      normalizeModalPlacement(modal);
       return modal;
     }
 

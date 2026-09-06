@@ -606,3 +606,28 @@
 .alp-dqm-ui[data-alp-dqm-x-compact="1"] .alp-dqm-list {
   grid-template-columns: 1fr;
 }
+
+/* v1.0.5: keep nested Add Element pickers usable and movable. */
+.alp-dqm-host.alp-dqm-draggable > .et-vb-modal-header,
+.alp-dqm-host.alp-dqm-draggable > [class*="et-vb-modal-header"] {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.alp-dqm-host.alp-dqm-modal-dragging > .et-vb-modal-header,
+.alp-dqm-host.alp-dqm-modal-dragging > [class*="et-vb-modal-header"] {
+  cursor: grabbing;
+}
+
+.alp-dqm-host.alp-dqm-draggable > .et-vb-modal-header button,
+.alp-dqm-host.alp-dqm-draggable > .et-vb-modal-header a,
+.alp-dqm-host.alp-dqm-draggable > [class*="et-vb-modal-header"] button,
+.alp-dqm-host.alp-dqm-draggable > [class*="et-vb-modal-header"] a {
+  cursor: pointer;
+}
+
+html.alp-dqm-dragging-active,
+html.alp-dqm-dragging-active * {
+  user-select: none !important;
+}
