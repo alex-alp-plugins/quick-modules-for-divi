@@ -152,6 +152,14 @@ Favorites and recent-module preferences remain inside your WordPress installatio
 
 [![Latest Version](https://img.shields.io/github/v/tag/alex-alp-plugins/quick-modules-for-divi?sort=semver&label=Version)](https://github.com/alex-alp-plugins/quick-modules-for-divi/releases/latest)
 
+### 1.0.5
+
+New in this v1.0.5:
+
+- Improved positioning of nested "Insert Module Or Row" pickers.
+- Draggable module picker using the modal header.
+- Improved viewport positioning and movement boundaries.
+
 ### 1.0.4
 
 Stability, localization and Divi 5.11 compatibility update.
