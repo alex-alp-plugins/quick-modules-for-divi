@@ -1,0 +1,18 @@
+name: ALP Release Bridge Check
+
+on:
+  push:
+    branches:
+      - alp-release-1.0.6
+    paths:
+      - .github/workflows/alp-release-1.0.6.yml
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm release bridge
+        run: echo "ALP release bridge is available."
