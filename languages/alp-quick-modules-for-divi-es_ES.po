@@ -1,0 +1,59 @@
+# ALP Quick Modules for Divi - Spanish (Spain)
+# Copyright (C) 2026 ALP Plugins
+# This file is distributed under the GPLv2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: ALP Quick Modules for Divi 1.0.6\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-09-13 22:10+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: es_ES\n"
+"Language-Team: es_ES <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Favorites"
+msgstr "Favoritos"
+
+msgid "Recent"
+msgstr "Recientes"
+
+msgid "No favorites yet. Click a star to add one."
+msgstr "Aún no hay favoritos. Haz clic en una estrella para añadir uno."
+
+msgid "Recently used modules will appear here."
+msgstr "Los módulos usados recientemente aparecerán aquí."
+
+msgid "Add to favorites"
+msgstr "Añadir a favoritos"
+
+msgid "Remove from favorites"
+msgstr "Quitar de favoritos"
+
+#. translators: %s: Divi module name.
+#, python-format
+msgid "%s added to Favorites."
+msgstr "%s se añadió a favoritos."
+
+#. translators: %s: Divi module name.
+#, python-format
+msgid "%s removed from Favorites."
+msgstr "%s se quitó de favoritos."
+
+#. translators: %s: Divi module name.
+#, python-format
+msgid "Remove %s from favorites"
+msgstr "Quitar %s de favoritos"
+
+msgid "Drag to reorder"
+msgstr "Arrastra para reordenar"
+
+#. translators: %s: Divi module name.
+#, python-format
+msgid "Could not find %s in the current module list."
+msgstr "No se pudo encontrar %s en la lista actual de módulos."
+

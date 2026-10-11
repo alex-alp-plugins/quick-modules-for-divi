@@ -1,4 +1,4 @@
-/* Quick Modules for Divi only runs inside the Visual Builder. */
+/* ALP Quick Modules for Divi only runs inside the Visual Builder. */
 
 /*
  * Divi owns the native add-module dialog dimensions.
@@ -9,6 +9,17 @@
  */
 .alp-dqm-host {
   transition-property: opacity, transform !important;
+}
+
+/*
+ * Width isolation for the New Module tab only.
+ * JS adds this class only while Divi's active tab is `add-module`.
+ * Removing it reveals Divi's own inline width unchanged, which is critical for
+ * the fluid Add From Library layout introduced/used in Divi 5.15.1.
+ */
+.et-vb-modal.et-vb-modal--main.et-vb-modal--add-module.alp-dqm-width-override {
+  width: var(--alp-dqm-modal-width) !important;
+  max-width: var(--alp-dqm-modal-width) !important;
 }
 
 .alp-dqm-ui {
@@ -248,6 +259,25 @@
 
 .alp-dqm-card { position: relative !important; }
 
+/* Divi 5.15.1 React-safe Favorite overlays.
+   The layer lives directly under <body>, completely outside Divi's React-managed
+   module-picker tree, so reconciliation cannot remove one of two same-name
+   Component stars. */
+.alp-dqm-star-overlay-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 100026;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.alp-dqm-star-overlay-layer > .alp-dqm-star[data-alp-dqm-overlay="1"] {
+  right: auto;
+  pointer-events: auto;
+}
+
 .alp-dqm-star {
   appearance: none;
   position: absolute;
@@ -313,7 +343,8 @@
 
 /* v0.6.0: polished adaptive UI for Divi dark and light modes. */
 .alp-dqm-ui,
-.alp-dqm-host {
+.alp-dqm-host,
+.alp-dqm-star-overlay-layer {
   --alp-dqm-panel-border: rgba(255, 255, 255, .09);
   --alp-dqm-panel-bg: rgba(255, 255, 255, .035);
   --alp-dqm-tab-border: rgba(255, 255, 255, .10);
@@ -347,6 +378,7 @@
  */
 .alp-dqm-ui.alp-dqm-theme-light,
 .alp-dqm-host.alp-dqm-theme-light,
+.alp-dqm-star-overlay-layer.alp-dqm-theme-light,
 .alp-dqm-host[data-alp-dqm-theme="light"] .alp-dqm-ui {
   --alp-dqm-panel-border: #dce4ef;
   --alp-dqm-panel-bg: #f8fafc;

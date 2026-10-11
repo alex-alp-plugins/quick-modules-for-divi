@@ -1,52 +1,77 @@
 (function () {
   'use strict';
 
-  if (window.__ALP_DQM_BOOT_STATE__) return;
-  window.__ALP_DQM_BOOT_STATE__ = 'booting';
+  if (window.ALPQMDBootState) return;
+  window.ALPQMDBootState = 'booting';
 
   function getAvailableConfig() {
-    if (window.ALPDiviQuickModules) return window.ALPDiviQuickModules;
+    if (window.ALPQMDQuickModules) return window.ALPQMDQuickModules;
 
     try {
-      if (window.top && window.top !== window && window.top.ALPDiviQuickModules) {
-        return window.top.ALPDiviQuickModules;
+      if (window.top && window.top !== window && window.top.ALPQMDQuickModules) {
+        return window.top.ALPQMDQuickModules;
       }
     } catch (e) {}
-
-    return null;
-  }
-
-  function getAjaxUrl() {
-    if (typeof window.ajaxurl === 'string' && window.ajaxurl) return window.ajaxurl;
-
-    try {
-      if (window.top && typeof window.top.ajaxurl === 'string' && window.top.ajaxurl) {
-        return window.top.ajaxurl;
-      }
-    } catch (e) {}
-
-    // Last-resort same-origin discovery for WordPress installations in a subdirectory.
-    const nodes = Array.from(document.querySelectorAll('script[src], link[href]'));
-    for (const node of nodes) {
-      const raw = node.getAttribute('src') || node.getAttribute('href') || '';
-      const marker = raw.indexOf('/wp-admin/');
-      if (marker < 0) continue;
-
-      try {
-        const resolved = new URL(raw, window.location.href);
-        const pathMarker = resolved.pathname.indexOf('/wp-admin/');
-        if (pathMarker < 0) continue;
-        return resolved.origin + resolved.pathname.slice(0, pathMarker) + '/wp-admin/admin-ajax.php';
-      } catch (e) {}
-    }
 
     return null;
   }
 
   function start(cfg) {
-    if (!cfg || window.__ALP_DQM_BOOT_STATE__ === 'active') return;
-    window.__ALP_DQM_BOOT_STATE__ = 'active';
+    if (!cfg || window.ALPQMDBootState === 'active') return;
+    window.ALPQMDBootState = 'active';
     const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+    const COMPONENT_STORAGE_PREFIX = 'alpqmd-component|';
+
+    function parseComponentStoredIdentity(value) {
+      const raw = String(value || '');
+      if (!raw.startsWith(COMPONENT_STORAGE_PREFIX)) return null;
+
+      const parts = raw.slice(COMPONENT_STORAGE_PREFIX.length).split('|');
+      if (parts.length < 4) return null;
+
+      const id = parts.shift();
+      const libraryType = normalize(parts.shift()).toLowerCase();
+      const moduleName = normalize(parts.shift());
+      const name = normalize(parts.join('|'));
+
+      if (!/^\d+$/.test(id) || Number(id) < 1 || !libraryType || !moduleName || !name) return null;
+
+      return { id, libraryType, moduleName, name };
+    }
+
+    function serializeComponentStoredIdentity(meta, displayName) {
+      if (!meta || !/^\d+$/.test(String(meta.id || ''))) return '';
+
+      const libraryType = normalize(meta.libraryType || '').toLowerCase().replace(/\|/g, '');
+      const moduleName = normalize(meta.moduleName || '').replace(/\|/g, '');
+      const name = normalize(displayName || meta.name || '');
+      if (!libraryType || !moduleName || !name) return '';
+
+      return COMPONENT_STORAGE_PREFIX + [
+        String(meta.id),
+        libraryType,
+        moduleName,
+        name,
+      ].join('|');
+    }
+
+    function componentIdentityKey(value) {
+      const meta = typeof value === 'string' ? parseComponentStoredIdentity(value) : value;
+      if (!meta) return '';
+      return String(meta.libraryType || '').toLowerCase() + ':' + String(meta.id || '');
+    }
+
+    function sameComponentIdentity(left, right) {
+      const leftKey = componentIdentityKey(left);
+      const rightKey = componentIdentityKey(right);
+      return !!leftKey && leftKey === rightKey;
+    }
+
+    function canonicalizeStoredIdentity(value) {
+      const component = parseComponentStoredIdentity(value);
+      if (component) return serializeComponentStoredIdentity(component, component.name);
+      return getCanonicalLegacyModuleName(value);
+    }
 
     const cleanStoredList = (items) => {
       const clean = [];
@@ -63,7 +88,7 @@
     const canonicalizeStoredList = (items) => {
       const stable = [];
       cleanStoredList(items).forEach((item) => {
-        const name = getCanonicalLegacyModuleName(item);
+        const name = canonicalizeStoredIdentity(item);
         if (name && !stable.includes(name)) stable.push(name);
       });
       return stable;
@@ -79,7 +104,7 @@
     const state = {
       favorites: migratedFavorites,
       recent: migratedRecent,
-      needsMigration: savedSchemaVersion < 3 || rawFavorites.join('\u0000') !== migratedFavorites.join('\u0000') || rawRecent.join('\u0000') !== migratedRecent.join('\u0000'),
+      needsMigration: savedSchemaVersion < 4 || rawFavorites.join('\u0000') !== migratedFavorites.join('\u0000') || rawRecent.join('\u0000') !== migratedRecent.join('\u0000'),
       modal: null,
       activeQuickTab: null,
       saveTimer: null,
@@ -90,6 +115,7 @@
       quickUiBound: false,
       launchLocked: false,
       localizedLabels: Object.create(null),
+      componentLabels: Object.create(null),
     };
 
     function format(template, value) {
@@ -100,7 +126,7 @@
       clearTimeout(state.saveTimer);
       state.saveTimer = setTimeout(() => {
         const body = new URLSearchParams();
-        body.set('action', 'alp_dqm_save_preferences');
+        body.set('action', 'alpqmd_save_preferences');
         body.set('nonce', cfg.nonce);
         body.set('favorites', JSON.stringify(state.favorites));
         body.set('recent', JSON.stringify(state.recent));
@@ -330,6 +356,9 @@
     }
 
     function getModuleSearchTerms(name) {
+      const component = parseComponentStoredIdentity(name);
+      if (component) return component.name ? [component.name] : [];
+
       const original = normalize(name);
       const canonical = getCanonicalLegacyModuleName(original);
       const aliases = getModuleAliasCandidates(canonical || original);
@@ -734,6 +763,13 @@
       // from becoming the sizing reference.
       const nativeShell = getNativeAddModuleShell(null);
       if (nativeShell) {
+        // Divi 5.15.1 keeps the same divi/add-module shell while switching
+        // between New Module, New Row and Add From Library. The library search
+        // field is intentionally not a "module" search field, so use Divi's
+        // modal store as the primary identity when it is available.
+        const diviState = getDiviAddModuleState();
+        if (diviState.tab) return nativeShell;
+
         const nativeSearch = getSearchInput(nativeShell);
         if (nativeSearch instanceof HTMLInputElement && hasLocalizedModuleSearchSignal(nativeSearch)) {
           return nativeShell;
@@ -765,6 +801,9 @@
 
       root.querySelectorAll('.alp-dqm-ui').forEach((node) => node.remove());
       root.querySelectorAll('.alp-dqm-star').forEach((node) => node.remove());
+      document.querySelectorAll('.alp-dqm-star-overlay-layer').forEach((layer) => {
+        if (layer._alpDqmModal === root) layer.remove();
+      });
       root.querySelectorAll('[data-alp-dqm-card="1"]').forEach((node) => {
         node.classList.remove('alp-dqm-card');
         delete node.dataset.alpDqmCard;
@@ -796,7 +835,15 @@
         if (modal !== activeModal) resetElementEnhancements(modal);
       });
 
+      // Body-level Favorite overlays deliberately live outside Divi's React tree.
+      // Keep only the layer associated with the currently active Add Module modal.
+      document.querySelectorAll('.alp-dqm-star-overlay-layer').forEach((layer) => {
+        if (!activeModal || layer._alpDqmModal !== activeModal) layer.remove();
+      });
+
+      // Remove any legacy in-modal star left by an older cached build.
       document.querySelectorAll('.alp-dqm-star').forEach((star) => {
+        if (star.closest('.alp-dqm-star-overlay-layer')) return;
         if (!activeModal || !activeModal.contains(star)) star.remove();
       });
     }
@@ -823,10 +870,52 @@
       return best;
     }
 
+    function getComponentMetaFromCard(el, visibleName) {
+      if (!(el instanceof HTMLElement)) return null;
+
+      // Divi 5.15 currently puts component metadata directly on the native
+      // picker button. Also accept a descendant/ancestor as a defensive fallback
+      // so a future wrapper change does not make Components fall back to name-only
+      // detection.
+      let componentCard = el.matches('[data-component-id]') ? el : null;
+      if (!(componentCard instanceof HTMLElement)) {
+        const descendant = el.querySelector('[data-component-id]');
+        if (descendant instanceof HTMLElement) componentCard = descendant;
+      }
+      if (!(componentCard instanceof HTMLElement)) {
+        const ancestor = el.closest('[data-component-id]');
+        if (ancestor instanceof HTMLElement) componentCard = ancestor;
+      }
+
+      if (!(componentCard instanceof HTMLElement)) return null;
+
+      const id = String(componentCard.getAttribute('data-component-id') || '').trim();
+      const libraryType = normalize(componentCard.getAttribute('data-component-library-type') || '').toLowerCase();
+      const moduleName = normalize(componentCard.getAttribute('data-module-name') || '');
+      if (!/^\d+$/.test(id) || Number(id) < 1 || !libraryType || !moduleName) return null;
+
+      return {
+        id,
+        libraryType,
+        moduleName,
+        name: normalize(visibleName || ''),
+        el: componentCard,
+      };
+    }
+
+    function getStoredIdentityForCard(el, visibleName) {
+      const component = getComponentMetaFromCard(el, visibleName);
+      if (component) return serializeComponentStoredIdentity(component, visibleName);
+      return getStableStoredNameForCard(el, visibleName);
+    }
+
     function getCardName(el) {
       if (!(el instanceof HTMLElement)) return '';
       const stored = normalize(el.dataset.alpDqmName || '');
-      if (stored && !/[★☆]\s*$/.test(stored)) return stored;
+      // Native module labels are effectively static while the picker is open, but
+      // Divi Components can be renamed while keeping the same stable component ID.
+      // Re-read Component card text so saved shortcut labels can follow the rename.
+      if (!getComponentMetaFromCard(el) && stored && !/[★☆]\s*$/.test(stored)) return stored;
 
       const clone = el.cloneNode(true);
       clone.querySelectorAll('.alp-dqm-star, .alp-dqm-ui').forEach((node) => node.remove());
@@ -839,8 +928,68 @@
       return el.tagName === 'BUTTON' || el.getAttribute('role') === 'button' || el.tabIndex >= 0 || style.cursor === 'pointer';
     }
 
+    function getDirectComponentName(el) {
+      if (!(el instanceof HTMLElement)) return '';
+
+      // Divi 5.15.1 renders Component names as direct text inside the native
+      // picker button. Use textContent for Components instead of relying on
+      // innerText from a detached clone. This stays reliable across React
+      // reconciliation, duplicate labels, renamed Components and selected tiles.
+      const text = normalize(el.textContent || '').replace(/\s*[★☆]+\s*$/g, '').trim();
+      if (text) return text;
+
+      const value = normalize(el.getAttribute('value') || '');
+      return value && !/^component-\d+$/i.test(value) ? value : '';
+    }
+
     function getModuleCards(modal) {
       if (!modal) return [];
+
+      // Divi 5.15.1 renders the picker options as direct BUTTON children of
+      // .et-vb-module-picker-options. Collect those direct children first instead
+      // of relying on a CSS class being present on every React render. This is
+      // intentionally per DOM tile: no de-duplication by label or component ID.
+      const optionsRoot = modal.querySelector('.et-vb-module-picker-options');
+      const directOptions = optionsRoot instanceof HTMLElement
+        ? Array.from(optionsRoot.children).filter((el) => (
+            el instanceof HTMLButtonElement && !el.closest('.alp-dqm-ui')
+          ))
+        : [];
+
+      // Also include any canonical picker buttons that are not direct children,
+      // preserving compatibility with older or future Divi markup.
+      const explicitOptions = Array.from(modal.querySelectorAll('.et-vb-module-picker-option'))
+        .filter((el) => el instanceof HTMLElement && !el.closest('.alp-dqm-ui'));
+
+      const pickerOptions = directOptions.concat(
+        explicitOptions.filter((el) => !directOptions.includes(el))
+      );
+
+      if (pickerOptions.length) {
+        const cards = [];
+        const seenElements = new Set();
+
+        const pushCard = (el) => {
+          if (!(el instanceof HTMLElement) || seenElements.has(el)) return;
+
+          const value = normalize(el.getAttribute('value') || '');
+          const isComponent = el.matches('[data-component-id]')
+            || /^component-[^\s]+$/i.test(value)
+            || el.classList.contains('et-vb-module-picker-option--component');
+
+          const text = isComponent ? getDirectComponentName(el) : getCardName(el);
+          if (!text || text.length > 70) return;
+
+          seenElements.add(el);
+          cards.push({ el, name: text });
+        };
+
+        pickerOptions.forEach(pushCard);
+
+        if (cards.length) return cards;
+      }
+
+      // Compatibility fallback for older/changed Divi picker markup.
       const modalRect = modal.getBoundingClientRect();
       const searchInput = getSearchInput(modal);
       const searchRect = searchInput instanceof HTMLElement ? searchInput.getBoundingClientRect() : null;
@@ -864,7 +1013,8 @@
         const hasVisual = !!el.querySelector('svg, img, [class*="icon" i]');
         if (!hasVisual && !isClickable(el)) continue;
 
-        const key = text.toLowerCase();
+        const component = getComponentMetaFromCard(el, text);
+        const key = component ? 'component:' + componentIdentityKey(component) : text.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
         cards.push({ el, name: text });
@@ -887,6 +1037,15 @@
 
     function findCardByName(modal, name) {
       const cards = getModuleCards(modal);
+      const requestedComponent = parseComponentStoredIdentity(name);
+
+      if (requestedComponent) {
+        return cards.find((card) => {
+          const candidate = getComponentMetaFromCard(card.el, card.name);
+          return candidate && sameComponentIdentity(candidate, requestedComponent);
+        }) || null;
+      }
+
       const canonicalName = getCanonicalLegacyModuleName(name);
       const aliases = getModuleAliasCandidates(canonicalName || name);
       const foldedAliases = aliases.map((alias) => foldText(alias));
@@ -930,7 +1089,8 @@
 
       const decorated = target.closest('[data-alp-dqm-card="1"]');
       if (decorated) {
-        return { el: decorated, name: decorated.dataset.alpDqmName || getCardName(decorated) };
+        const name = decorated.dataset.alpDqmName || getCardName(decorated);
+        return { el: decorated, name, storedName: getStoredIdentityForCard(decorated, name) };
       }
 
       const containing = getModuleCards(state.modal)
@@ -941,11 +1101,17 @@
           return (ar.width * ar.height) - (br.width * br.height);
         });
 
-      return containing[0] || null;
+      const card = containing[0] || null;
+      if (!card) return null;
+      return {
+        el: card.el,
+        name: card.name,
+        storedName: getStoredIdentityForCard(card.el, card.name),
+      };
     }
 
     function addRecent(name) {
-      name = getCanonicalLegacyModuleName(normalize(name).replace(/\s*[★☆]+\s*$/g, '').trim());
+      name = canonicalizeStoredIdentity(normalize(name).replace(/\s*[★☆]+\s*$/g, '').trim());
       if (!name) return;
 
       const next = [name].concat(state.recent.filter((item) => item !== name)).slice(0, Number(cfg.maxRecent) || 8);
@@ -973,7 +1139,7 @@
     }
 
     function removeFavorite(name) {
-      name = getCanonicalLegacyModuleName(normalize(name));
+      name = canonicalizeStoredIdentity(normalize(name));
       if (!name || !state.favorites.includes(name)) return;
 
       state.favorites = state.favorites.filter((item) => item !== name);
@@ -983,7 +1149,7 @@
     }
 
     function toggleFavorite(name) {
-      name = getCanonicalLegacyModuleName(normalize(name));
+      name = canonicalizeStoredIdentity(normalize(name));
       if (!name) return;
 
       if (state.favorites.includes(name)) {
@@ -1025,6 +1191,12 @@
 
     function getActivationTarget(card) {
       if (!card || !(card.el instanceof HTMLElement)) return null;
+
+      // Divi Components read their stable identity from data-component-* on the
+      // native picker button. Trigger that button directly so React receives the
+      // exact currentTarget Divi expects.
+      const component = getComponentMetaFromCard(card.el, card.name);
+      if (component && component.el instanceof HTMLElement) return component.el;
 
       // Prefer the element that is physically under the middle of the Divi tile.
       // This is more reliable with Divi 5 than guessing which wrapper owns React's
@@ -1081,7 +1253,7 @@
       const target = getActivationTarget(card);
       if (!(target instanceof HTMLElement)) return false;
 
-      addRecent(getStableStoredNameForCard(card.el, name));
+      addRecent(getStoredIdentityForCard(card.el, card.name || name));
       return dispatchDiviActivation(target);
     }
 
@@ -1097,6 +1269,56 @@
         };
         check();
       });
+    }
+
+    function getScrollableAncestor(el) {
+      let node = el instanceof HTMLElement ? el : null;
+
+      while (node) {
+        const style = getComputedStyle(node);
+        if (['auto', 'scroll'].includes(style.overflow) || ['auto', 'scroll'].includes(style.overflowY)) return node;
+        node = node.parentElement;
+      }
+
+      return null;
+    }
+
+    async function waitForComponentCardById(name, timeout) {
+      const component = parseComponentStoredIdentity(name);
+      if (!component || !state.modal || !document.contains(state.modal)) return null;
+
+      const started = performance.now();
+      const input = getSearchInput(state.modal);
+
+      if (input instanceof HTMLInputElement && input.value) {
+        setInputValue(input, '');
+        await new Promise((resolve) => setTimeout(resolve, 60));
+      }
+
+      const options = state.modal.querySelector('.et-vb-module-picker-options');
+      const scroller = getScrollableAncestor(options);
+      const originalScrollTop = scroller instanceof HTMLElement ? scroller.scrollTop : 0;
+
+      while (performance.now() - started < timeout) {
+        const card = findCardByName(state.modal, name);
+        if (card) return card;
+
+        if (!(scroller instanceof HTMLElement)) break;
+
+        const beforeHeight = scroller.scrollHeight;
+        scroller.scrollTop = scroller.scrollHeight;
+        scroller.dispatchEvent(new Event('scroll', { bubbles: true }));
+
+        await new Promise((resolve) => setTimeout(resolve, 180));
+
+        const afterCard = findCardByName(state.modal, name);
+        if (afterCard) return afterCard;
+
+        if (scroller.scrollHeight === beforeHeight && scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2) break;
+      }
+
+      if (scroller instanceof HTMLElement) scroller.scrollTop = originalScrollTop;
+      return findCardByName(state.modal, name);
     }
 
     async function clickModuleByName(name) {
@@ -1130,8 +1352,19 @@
           }
         }
 
+        // Component names can be changed after they are favorited. Their stable
+        // Divi component ID does not change, so clear the text filter and let
+        // Divi lazy-load component cards until the matching ID appears.
+        if (parseComponentStoredIdentity(name)) {
+          card = await waitForComponentCardById(name, 1800);
+          if (card && activateNativeCard(card, name)) {
+            activated = true;
+            return;
+          }
+        }
+
         setInputValue(input, oldValue || '');
-        showFeedback(format(cfg.strings.moduleNotFound || 'Could not find %s in the current module list.', name), 'error');
+        showFeedback(format(cfg.strings.moduleNotFound || 'Could not find %s in the current module list.', getLocalizedDisplayName(name)), 'error');
       } finally {
         // Keep a brief lock after activation so a pointer/click sequence, keyboard
         // repeat, or a fast double click cannot insert the same module twice.
@@ -1141,6 +1374,11 @@
     }
 
     function getLocalizedDisplayName(name) {
+      const component = parseComponentStoredIdentity(name);
+      if (component) {
+        return state.componentLabels[componentIdentityKey(component)] || component.name;
+      }
+
       const canonical = getCanonicalLegacyModuleName(name);
       if (!canonical) return normalize(name);
 
@@ -1155,9 +1393,15 @@
     }
 
     function getStoredFavoriteForCard(cardName, el) {
+      const component = getComponentMetaFromCard(el, cardName);
+      if (component) {
+        return state.favorites.find((storedName) => sameComponentIdentity(storedName, component)) || '';
+      }
+
       const stableCardName = getStableStoredNameForCard(el, cardName);
       const foldedCard = foldText(cardName);
       return state.favorites.find((storedName) => {
+        if (parseComponentStoredIdentity(storedName)) return false;
         if (getCanonicalLegacyModuleName(storedName) === stableCardName) return true;
         return getModuleAliasCandidates(storedName).some((alias) => foldText(alias) === foldedCard);
       }) || '';
@@ -1202,7 +1446,25 @@
 
     function setClockIcon(container) {
       if (!(container instanceof HTMLElement)) return;
-      container.innerHTML = '<svg class="alp-dqm-clock-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5v5l3.25 2"></path></svg>';
+
+      const svgNamespace = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(svgNamespace, 'svg');
+      svg.setAttribute('class', 'alp-dqm-clock-svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.setAttribute('focusable', 'false');
+
+      const circle = document.createElementNS(svgNamespace, 'circle');
+      circle.setAttribute('cx', '12');
+      circle.setAttribute('cy', '12');
+      circle.setAttribute('r', '8.5');
+
+      const path = document.createElementNS(svgNamespace, 'path');
+      path.setAttribute('d', 'M12 7.5v5l3.25 2');
+
+      svg.appendChild(circle);
+      svg.appendChild(path);
+      container.replaceChildren(svg);
     }
 
     function makeRecentShortcut(name) {
@@ -1379,8 +1641,139 @@
       }) || null;
     }
 
+
+    function getDiviAddModuleState() {
+      const views = [window];
+
+      try {
+        if (window.top && window.top !== window) views.push(window.top);
+      } catch (e) {}
+
+      for (const view of views) {
+        try {
+          const data = view && view.wp && view.wp.data;
+          if (!data || typeof data.select !== 'function') continue;
+
+          const store = data.select('divi/modal-library');
+          if (!store || typeof store.getModalProperty !== 'function') continue;
+
+          const tab = store.getModalProperty({
+            modalName: 'divi/add-module',
+            property: 'tab',
+          });
+
+          const dimension = store.getModalProperty({
+            modalName: 'divi/add-module',
+            property: 'dimension',
+          });
+
+          return {
+            tab: typeof tab === 'string' ? tab : '',
+            dimension: dimension && typeof dimension === 'object' ? dimension : null,
+          };
+        } catch (e) {}
+      }
+
+      return { tab: '', dimension: null };
+    }
+
+    function isQuickModulesPickerTab(modal) {
+      const diviState = getDiviAddModuleState();
+
+      // Divi 5.15.1 exposes these exact internal tab IDs:
+      // add-module, add-nested-row and add-from-library.
+      if (diviState.tab) return diviState.tab === 'add-module';
+
+      // DOM fallback for builds where the data store is not reachable.
+      if (modal instanceof HTMLElement) {
+        const activeTab = modal.querySelector('.et-vb-modal-tab--active');
+        if (activeTab instanceof HTMLElement) {
+          const text = foldText(activeTab.innerText || activeTab.textContent || '');
+          if (/add\s+from\s+library|new\s+row/i.test(text)) return false;
+          if (/new\s+module/i.test(text)) return true;
+        }
+
+        const input = getSearchInput(modal);
+        if (input instanceof HTMLInputElement) return hasLocalizedModuleSearchSignal(input);
+      }
+
+      // Preserve compatibility with older Divi builds when no reliable tab
+      // identity is exposed.
+      return true;
+    }
+
+    function restoreDiviManagedShellForNativeTab(modal) {
+      if (!(modal instanceof HTMLElement)) return;
+
+      const nativeShell = getNativeAddModuleShell(modal);
+      if (!(nativeShell instanceof HTMLElement)) return;
+
+      // Never write Divi's native width back from the modal store. In 5.15.1 the
+      // Add From Library tab calculates a fluid width from the current top-window
+      // width, builder bar and sidebars. Re-applying a stale stored width can make
+      // the library dramatically narrower than Divi intended.
+      //
+      // Quick Modules now owns only this temporary class/custom property. Removing
+      // them instantly reveals Divi's untouched native inline width.
+      nativeShell.classList.remove('alp-dqm-width-override');
+      nativeShell.style.removeProperty('--alp-dqm-modal-width');
+      nativeShell.style.removeProperty('--alp-dqm-compact-width');
+      delete nativeShell.dataset.alpDqmCompact;
+      delete nativeShell.dataset.alpDqmXCompact;
+
+      // The draggable/recentering behavior belongs only to the module picker.
+      // Library and row tabs should use Divi's own placement untouched.
+      modal.style.removeProperty('translate');
+      delete modal.dataset.alpDqmTranslateX;
+      delete modal.dataset.alpDqmTranslateY;
+      delete modal.dataset.alpDqmPlacementReady;
+      delete modal.dataset.alpDqmUserMoved;
+      modal.classList.remove('alp-dqm-modal-dragging');
+      document.documentElement.classList.remove('alp-dqm-dragging-active');
+    }
+
+    function suspendQuickModulesForNativeTab(modal) {
+      if (!(modal instanceof HTMLElement)) return;
+
+      modal.querySelectorAll('.alp-dqm-ui').forEach((node) => node.remove());
+      modal.querySelectorAll('.alp-dqm-star').forEach((node) => node.remove());
+
+      document.querySelectorAll('.alp-dqm-star-overlay-layer').forEach((layer) => {
+        if (layer._alpDqmModal === modal) layer.remove();
+      });
+
+      modal.querySelectorAll('[data-alp-dqm-card="1"]').forEach((node) => {
+        node.classList.remove('alp-dqm-card');
+        delete node.dataset.alpDqmCard;
+        delete node.dataset.alpDqmName;
+      });
+
+      modal.classList.remove(
+        'alp-dqm-modal',
+        'alp-dqm-host',
+        'alp-dqm-theme-light',
+        'alp-dqm-theme-dark',
+        'alp-dqm-draggable',
+        'alp-dqm-compact',
+        'alp-dqm-is-narrow',
+        'alp-dqm-is-xnarrow',
+        'alp-dqm-width-override'
+      );
+
+      delete modal.dataset.alpDqmTheme;
+      delete modal.dataset.alpDqmPreviewWidth;
+      state.activeQuickTab = null;
+
+      restoreDiviManagedShellForNativeTab(modal);
+    }
+
     function syncPreviewModalWidth(modal) {
       if (!(modal instanceof HTMLElement)) return;
+
+      if (!isQuickModulesPickerTab(modal)) {
+        restoreDiviManagedShellForNativeTab(modal);
+        return;
+      }
 
       const previewWidth = getDiviPreviewWidth();
       modal.dataset.alpDqmPreviewWidth = previewWidth === null ? '' : String(previewWidth);
@@ -1400,15 +1793,17 @@
       const viewportCap = Math.max(300, Math.floor(window.innerWidth - 24));
       const finalWidth = Math.min(desiredWidth, viewportCap);
 
-      nativeShell.style.setProperty('width', finalWidth + 'px', 'important');
-      nativeShell.style.setProperty('max-width', finalWidth + 'px', 'important');
+      // Do not overwrite Divi's inline width. Divi changes that same property
+      // when switching to Add From Library, where the modal becomes fluid/full.
+      // A removable class gives Quick Modules its 500/550/600px module-picker
+      // width without ever destroying the native library width.
       nativeShell.style.removeProperty('--alp-dqm-compact-width');
       nativeShell.style.setProperty('--alp-dqm-modal-width', finalWidth + 'px');
+      nativeShell.classList.add('alp-dqm-width-override');
 
-      // Never leave width on a fallback/inner host from an older RC.
+      // Never leave a width override marker on a fallback/inner host.
       if (modal !== nativeShell) {
-        modal.style.removeProperty('width');
-        modal.style.removeProperty('max-width');
+        modal.classList.remove('alp-dqm-width-override');
         modal.style.removeProperty('--alp-dqm-modal-width');
         modal.style.removeProperty('--alp-dqm-compact-width');
       }
@@ -1542,7 +1937,7 @@
 
       const tabs = document.createElement('div');
       tabs.className = 'alp-dqm-tabs';
-      tabs.setAttribute('aria-label', 'Quick Modules for Divi');
+      tabs.setAttribute('aria-label', 'ALP Quick Modules for Divi');
 
       const feedback = document.createElement('div');
       feedback.className = 'alp-dqm-feedback';
@@ -1569,6 +1964,11 @@
     function renderQuickUI(modal, force) {
       if (!modal || !document.contains(modal)) return;
 
+      if (!isQuickModulesPickerTab(modal)) {
+        suspendQuickModulesForNativeTab(modal);
+        return;
+      }
+
       const ui = ensureUI(modal);
       syncTheme(modal, ui);
       const tabs = ui.querySelector('.alp-dqm-tabs');
@@ -1591,11 +1991,11 @@
       }
       ui.dataset.alpDqmSignature = signature;
 
-      tabs.innerHTML = '';
+      tabs.replaceChildren();
       tabs.appendChild(makeQuickTab('favorites', cfg.strings.favorites, state.favorites.length));
       tabs.appendChild(makeQuickTab('recent', cfg.strings.recent, state.recent.length));
 
-      panel.innerHTML = '';
+      panel.replaceChildren();
       panel.classList.toggle('is-open', !!state.activeQuickTab);
       if (!state.activeQuickTab) return;
 
@@ -1617,28 +2017,225 @@
       panel.appendChild(list);
     }
 
+    function replaceComponentIdentityInList(items, currentIdentity) {
+      const current = parseComponentStoredIdentity(currentIdentity);
+      if (!current) return { items, changed: false };
+
+      let changed = false;
+      const next = [];
+      (Array.isArray(items) ? items : []).forEach((item) => {
+        if (sameComponentIdentity(item, current)) {
+          if (!next.includes(currentIdentity)) next.push(currentIdentity);
+          if (item !== currentIdentity) changed = true;
+          return;
+        }
+        if (!next.includes(item)) next.push(item);
+      });
+
+      return { items: next, changed };
+    }
+
+    function intersectRects(left, right) {
+      if (!left || !right) return null;
+
+      const top = Math.max(left.top, right.top);
+      const rightEdge = Math.min(left.right, right.right);
+      const bottom = Math.min(left.bottom, right.bottom);
+      const leftEdge = Math.max(left.left, right.left);
+
+      if (rightEdge <= leftEdge || bottom <= top) return null;
+      return {
+        top,
+        right: rightEdge,
+        bottom,
+        left: leftEdge,
+        width: rightEdge - leftEdge,
+        height: bottom - top,
+      };
+    }
+
+    function getPickerVisibleRect(modal) {
+      if (!(modal instanceof HTMLElement)) return null;
+
+      let visible = modal.getBoundingClientRect();
+      const body = modal.querySelector('.et-vb-modal-body');
+      if (body instanceof HTMLElement) {
+        visible = intersectRects(visible, body.getBoundingClientRect());
+      }
+
+      const activePanel = modal.querySelector('.et-vb-modal-panel--add-module.et-vb-active')
+        || modal.querySelector('.et-vb-modal-panel.et-vb-active');
+      if (activePanel instanceof HTMLElement) {
+        visible = intersectRects(visible, activePanel.getBoundingClientRect());
+      }
+
+      return visible;
+    }
+
+    function updateStarOverlayBounds(layer, modal) {
+      if (!(layer instanceof HTMLElement) || !(modal instanceof HTMLElement)) return;
+
+      const visible = getPickerVisibleRect(modal);
+      if (!visible) {
+        layer.style.setProperty('clip-path', 'inset(100% 0 0 0)');
+        return;
+      }
+
+      // The layer remains body-level so React cannot reconcile it away, but clip
+      // it to the actual module-picker body. This prevents stars from floating
+      // over Divi's toolbar, page canvas or modal tabs while cards scroll.
+      const top = Math.max(0, visible.top);
+      const right = Math.max(0, window.innerWidth - visible.right);
+      const bottom = Math.max(0, window.innerHeight - visible.bottom);
+      const left = Math.max(0, visible.left);
+      layer.style.setProperty(
+        'clip-path',
+        'inset(' + Math.round(top) + 'px ' + Math.round(right) + 'px ' + Math.round(bottom) + 'px ' + Math.round(left) + 'px)'
+      );
+
+      const modalZ = Number.parseInt(getComputedStyle(modal).zIndex || '', 10);
+      layer.style.zIndex = String(Number.isFinite(modalZ) ? modalZ + 1 : 100026);
+    }
+
+    function getGlobalStarOverlayLayer(modal) {
+      if (!(modal instanceof HTMLElement) || !document.body || !isQuickModulesPickerTab(modal)) return null;
+
+      let layer = document.querySelector('body > .alp-dqm-star-overlay-layer');
+      if (!(layer instanceof HTMLElement)) {
+        layer = document.createElement('div');
+        layer.className = 'alp-dqm-star-overlay-layer';
+        layer.setAttribute('aria-hidden', 'false');
+        document.body.appendChild(layer);
+      }
+
+      // If Divi replaced the Add Module modal, clear stale buttons before rebinding.
+      if (layer._alpDqmModal && layer._alpDqmModal !== modal) {
+        layer.replaceChildren();
+      }
+      layer._alpDqmModal = modal;
+
+      const isLight = detectLightTheme(modal);
+      layer.classList.toggle('alp-dqm-theme-light', isLight);
+      layer.classList.toggle('alp-dqm-theme-dark', !isLight);
+      layer.dataset.alpDqmTheme = isLight ? 'light' : 'dark';
+      updateStarOverlayBounds(layer, modal);
+
+      return layer;
+    }
+
+    function positionStarOverlay(star, card, modal) {
+      if (!(star instanceof HTMLElement) || !(card instanceof HTMLElement) || !(modal instanceof HTMLElement)) return;
+
+      if (!isQuickModulesPickerTab(modal)
+        || !document.contains(card)
+        || !modal.contains(card)
+        || card.getClientRects().length === 0) {
+        star.hidden = true;
+        return;
+      }
+
+      const panel = card.closest('.et-vb-modal-panel');
+      if (panel instanceof HTMLElement && !panel.classList.contains('et-vb-active')) {
+        star.hidden = true;
+        return;
+      }
+
+      const style = getComputedStyle(card);
+      if (style.display === 'none' || style.visibility === 'hidden' || Number.parseFloat(style.opacity || '1') <= 0.01) {
+        star.hidden = true;
+        return;
+      }
+
+      const cardRect = card.getBoundingClientRect();
+      const visible = getPickerVisibleRect(modal);
+      if (!visible || cardRect.width < 20 || cardRect.height < 20) {
+        star.hidden = true;
+        return;
+      }
+
+      const starTop = cardRect.top + 5;
+      const starLeft = cardRect.right - 29;
+      const starRight = starLeft + 24;
+      const starBottom = starTop + 24;
+
+      // Hide rather than let a body-level overlay escape the native picker.
+      if (starRight <= visible.left
+        || starLeft >= visible.right
+        || starBottom <= visible.top
+        || starTop >= visible.bottom) {
+        star.hidden = true;
+        return;
+      }
+
+      star.hidden = false;
+      star.style.top = Math.round(starTop) + 'px';
+      star.style.left = Math.round(starLeft) + 'px';
+      star.style.right = 'auto';
+    }
+
+    function getOrCreateOverlayStar(card, layer) {
+      if (!(card instanceof HTMLElement) || !(layer instanceof HTMLElement)) return null;
+
+      const stars = Array.from(layer.querySelectorAll(':scope > .alp-dqm-star[data-alp-dqm-overlay="1"]'));
+      let star = stars.find((candidate) => candidate._alpDqmTargetCard === card) || null;
+
+      if (!star) {
+        star = document.createElement('button');
+        star.type = 'button';
+        star.className = 'alp-dqm-star';
+        star.dataset.alpDqmOverlay = '1';
+        star.textContent = '★';
+        star._alpDqmTargetCard = card;
+        layer.appendChild(star);
+      }
+
+      positionStarOverlay(star, card, state.modal || card.closest('.et-vb-modal'));
+      return star;
+    }
+
     function decorateCards(modal) {
+      let componentIdentityChanged = false;
+      const usedOverlayStars = new Set();
+      const overlayLayer = getGlobalStarOverlayLayer(modal);
+      if (overlayLayer) updateStarOverlayBounds(overlayLayer, modal);
+
       getModuleCards(modal).forEach(({ el, name }) => {
         el.dataset.alpDqmCard = '1';
         el.dataset.alpDqmName = name;
         el.classList.add('alp-dqm-card');
 
-        const stableName = getStableStoredNameForCard(el, name);
-        if (stableName && name) state.localizedLabels[stableName] = name;
+        const component = getComponentMetaFromCard(el, name);
+        const stableName = getStoredIdentityForCard(el, name);
 
-        const existingStars = Array.from(el.querySelectorAll(':scope > .alp-dqm-star'));
-        let star = existingStars.shift() || null;
-        existingStars.forEach((extra) => extra.remove());
+        if (component) {
+          const key = componentIdentityKey(component);
+          if (key) state.componentLabels[key] = name;
+
+          const favoriteSync = replaceComponentIdentityInList(state.favorites, stableName);
+          const recentSync = replaceComponentIdentityInList(state.recent, stableName);
+          if (favoriteSync.changed) {
+            state.favorites = favoriteSync.items;
+            componentIdentityChanged = true;
+          }
+          if (recentSync.changed) {
+            state.recent = recentSync.items;
+            componentIdentityChanged = true;
+          }
+        } else if (stableName && name) {
+          state.localizedLabels[stableName] = name;
+        }
+
         const storedFavorite = getStoredFavoriteForCard(name, el);
         const active = !!storedFavorite;
 
-        if (!star) {
-          star = document.createElement('button');
-          star.type = 'button';
-          star.className = 'alp-dqm-star';
-          star.textContent = '★';
-          el.appendChild(star);
-        }
+        // Never place Favorite controls inside Divi's React-managed picker tree.
+        // Divi 5.15.1 can reconcile the Component list after search/selection and
+        // remove unknown sibling/child nodes. A single body-level overlay layer
+        // gives every visible card its own stable, accessible button.
+        el.querySelectorAll(':scope > .alp-dqm-star').forEach((oldStar) => oldStar.remove());
+        const star = overlayLayer ? getOrCreateOverlayStar(el, overlayLayer) : null;
+        if (!star) return;
+        usedOverlayStars.add(star);
 
         star.dataset.alpDqmFavorite = storedFavorite || stableName || name;
         star.classList.toggle('is-active', active);
@@ -1646,6 +2243,25 @@
         star.setAttribute('aria-pressed', active ? 'true' : 'false');
         star.title = active ? cfg.strings.unfavorite : cfg.strings.favorite;
       });
+
+      // React can briefly render the Component list in partial batches while
+      // search/selection state changes. Do not delete an overlay merely because
+      // its tile was absent from one transient collection pass. Keep it while the
+      // exact target card is still connected to the active modal, and reposition
+      // it (positionStarOverlay hides it automatically when the tile is not visible).
+      if (overlayLayer) {
+        overlayLayer.querySelectorAll(':scope > .alp-dqm-star[data-alp-dqm-overlay="1"]').forEach((star) => {
+          if (usedOverlayStars.has(star)) return;
+          const targetCard = star._alpDqmTargetCard;
+          if (targetCard instanceof HTMLElement && document.contains(targetCard) && modal.contains(targetCard)) {
+            positionStarOverlay(star, targetCard, modal);
+            return;
+          }
+          star.remove();
+        });
+      }
+
+      if (componentIdentityChanged) save();
     }
 
     function getModalDragHandle(modal) {
@@ -1728,6 +2344,7 @@
       modal.classList.add('alp-dqm-draggable');
 
       handle.addEventListener('pointerdown', (event) => {
+        if (!isQuickModulesPickerTab(modal)) return;
         if (event.button !== 0) return;
         const target = event.target instanceof Element ? event.target : null;
         if (target && target.closest('button, a, input, select, textarea, [role="button"], [contenteditable="true"], [class*="close" i]')) return;
@@ -1772,6 +2389,11 @@
     function primeModal(modal) {
       if (!modal || !document.contains(modal)) return null;
 
+      if (!isQuickModulesPickerTab(modal)) {
+        suspendQuickModulesForNativeTab(modal);
+        return modal;
+      }
+
       // Apply the final dialog width synchronously, before the next browser paint.
       // Previously this class was first added inside requestAnimationFrame(), which
       // allowed Divi's native narrower dialog to be visible for a frame and made the
@@ -1794,7 +2416,7 @@
 
     function enhanceModal(modal) {
       modal = primeModal(modal);
-      if (!modal) return;
+      if (!modal || !isQuickModulesPickerTab(modal)) return;
       // Learn the current Divi-localized labels first, then render Favorites and
       // Recent. This prevents a previously saved French/Spanish label from being
       // shown for one frame after the builder language changes.
@@ -1811,6 +2433,7 @@
         const modal = state.modal;
         if (!modal || !document.contains(modal)) return;
         primeModal(modal);
+        if (!isQuickModulesPickerTab(modal)) return;
         decorateCards(modal);
         renderQuickUI(modal);
       });
@@ -1938,7 +2561,7 @@
       }
 
       const card = resolveNativeCardFromTarget(target);
-      if (card) addRecent(card.name);
+      if (card) addRecent(card.storedName || getStoredIdentityForCard(card.el, card.name));
     }, true);
 
     // Native Divi tabs collapse our quick panel without clearing data.
@@ -1952,7 +2575,7 @@
 
       if (/^(New Module|New Row|Add From Library)$/i.test(text)) {
         state.activeQuickTab = null;
-        renderQuickUI(state.modal);
+        scheduleEnhance();
         return;
       }
 
@@ -1966,14 +2589,15 @@
       const searchRect = searchInput.getBoundingClientRect();
       if (controlRect.bottom <= searchRect.top - 6 && controlRect.height <= 72) {
         state.activeQuickTab = null;
-        renderQuickUI(state.modal);
+        scheduleEnhance();
       }
     }, false);
 
     const observer = new MutationObserver((mutations) => {
       const relevant = mutations.some((mutation) => {
         const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
-        return !(target instanceof Element) || !target.closest('.alp-dqm-ui');
+        return !(target instanceof Element)
+          || (!target.closest('.alp-dqm-ui') && !target.closest('.alp-dqm-star-overlay-layer'));
       });
       if (!relevant) return;
 
@@ -2030,35 +2654,23 @@
     return;
   }
 
-  const ajaxUrl = getAjaxUrl();
-  if (!ajaxUrl) {
-    window.__ALP_DQM_BOOT_STATE__ = null;
-    return;
-  }
+  // Theme Builder can load this script inside its app window slightly before
+  // the top-window localized configuration becomes visible. Wait briefly for
+  // the WordPress-localized object instead of constructing or guessing an AJAX
+  // endpoint in JavaScript.
+  let configRetryCount = 0;
+  const configRetryTimer = window.setInterval(() => {
+    const retryConfig = getAvailableConfig();
+    if (retryConfig) {
+      window.clearInterval(configRetryTimer);
+      start(retryConfig);
+      return;
+    }
 
-  let requestUrl;
-  try {
-    requestUrl = new URL(ajaxUrl, window.location.href);
-    requestUrl.searchParams.set('action', 'alp_dqm_bootstrap');
-  } catch (e) {
-    window.__ALP_DQM_BOOT_STATE__ = null;
-    return;
-  }
-
-  fetch(requestUrl.toString(), {
-    method: 'GET',
-    credentials: 'same-origin',
-    headers: { 'Accept': 'application/json' },
-  })
-    .then((response) => response.ok ? response.json() : null)
-    .then((payload) => {
-      if (!payload || !payload.success || !payload.data) {
-        window.__ALP_DQM_BOOT_STATE__ = null;
-        return;
-      }
-      start(payload.data);
-    })
-    .catch(() => {
-      window.__ALP_DQM_BOOT_STATE__ = null;
-    });
+    configRetryCount += 1;
+    if (configRetryCount >= 20) {
+      window.clearInterval(configRetryTimer);
+      window.ALPQMDBootState = null;
+    }
+  }, 100);
 })();

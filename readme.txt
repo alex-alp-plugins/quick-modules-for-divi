@@ -1,50 +1,87 @@
-=== Quick Modules for Divi ===
+=== ALP Quick Modules for Divi ===
 Contributors: alex.alp
-Tags: divi, divi 5, favorite modules, recent modules, page builder
+Tags: divi, divi 5, divi modules, divi components, favorite modules
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.5
+Stable tag: 1.0.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Keep favorite and recently used Divi modules at the top of the module picker for faster access.
+Favorite and recent Divi 5 modules and Components, right in the module picker. Lightweight, multilingual, privacy-friendly, and completely free.
 
 == Description ==
 
-Quick Modules for Divi adds lightweight productivity shortcuts to the Divi 5 module picker, keeping the modules you use most within easy reach.
+ALP Quick Modules for Divi is a free Divi 5 productivity plugin that adds favorite and recently used modules and Components directly to the Divi module picker.
 
-Features:
+Save your most-used Divi modules and Components as favorites, access recent items instantly, reorder favorites with drag and drop, and insert them faster without searching through the full module list.
 
-* Mark frequently used modules as favorites.
-* See recently used modules automatically.
-* Reorder favorite modules with drag and drop.
-* Insert favorite and recent modules directly from the shortcut cards.
+= 🆓 Completely Free =
+
+ALP Quick Modules for Divi is completely free to use.
+
+There is no premium tier, no license key, no feature paywall, no usage limit, and no external subscription required.
+
+= ⭐ Features =
+
+* Favorite your most-used Divi modules and Components.
+* Access recently used modules and Components instantly.
+* Track Divi Components by stable component ID so duplicate names remain distinct.
+* Reorder Favorites with drag and drop.
+* Insert modules directly from Favorites and Recent.
 * Remove favorites from either the shortcut cards or the regular module list.
 * Clear visual feedback when favorites are added or removed.
-* Automatic styling for Divi light mode and dark mode.
-* Works in both the Divi 5 Visual Builder and Theme Builder.
-* Preferences stored separately for each WordPress user.
-* No custom database tables, tracking, telemetry, or external services.
+* Works with the Divi 5 Visual Builder and Theme Builder.
+* Automatic Light Mode and Dark Mode styling.
+* Responsive module picker behavior.
+* Per-user preferences for Favorites and Recent.
+* Multilingual interface support.
+* Cross-language matching for native Divi modules.
+* Designed to work with native modules, third-party Divi modules, and Divi Components shown in the module picker.
+* No custom database tables.
+* No tracking or telemetry.
+* No external API requests or services.
 * No plugin assets loaded on the public frontend.
 
-The plugin is intentionally small and focused. There is no settings screen to configure: activate it, open the Divi 5 Visual Builder or Theme Builder, and use the module picker normally.
+= ⚡ Built for Divi 5 =
 
-Quick Modules for Divi is independently developed by ALP Plugins and is not affiliated with, endorsed by, or sponsored by Elegant Themes. Divi is a trademark of Elegant Themes, Inc.
+ALP Quick Modules for Divi integrates directly with the Divi 5 module picker while preserving the native builder workflow.
+
+It supports both the Visual Builder and Theme Builder and keeps your favorite and recent Divi modules and Components close at hand while you build. Divi Components are supported in Divi 5.15 and newer.
+
+= 🔒 Privacy Friendly =
+
+The plugin works locally inside your WordPress installation. Favorite and recent module names, plus stable identifiers for saved Divi Components, are stored as WordPress user metadata in your site's own database.
+
+It does not track users, send analytics, require an external account, or communicate with third-party services.
+
+Stored Favorites and Recent preferences can be erased through WordPress privacy tools. Deactivating the plugin keeps your preferences, while deleting the plugin removes them from the database.
+
+= 🚀 Why Quick Modules? =
+
+As a Divi site grows, the module picker can contain dozens of native modules, third-party modules, and reusable Components. ALP Quick Modules for Divi reduces that friction by keeping the items you actually use within easy reach.
+
+Favorite them once, reorder them however you like, and access them directly whenever you open the Divi 5 module picker.
+
+ALP Quick Modules for Divi is independently developed by ALP Plugins and is not affiliated with, endorsed by, or sponsored by Elegant Themes. Divi is a trademark of Elegant Themes, Inc.
 
 == Installation ==
 
 1. Upload the plugin ZIP from Plugins > Add New > Upload Plugin, or install it from the WordPress Plugin Directory.
-2. Activate Quick Modules for Divi.
+2. Activate ALP Quick Modules for Divi.
 3. Open the Divi 5 Visual Builder or Theme Builder.
 4. Open the module picker.
-5. Use the star icons to add modules to Favorites. Recently inserted modules appear automatically under Recent.
+5. Use the star icons to add modules or Divi Components to Favorites. Recently inserted items appear automatically under Recent.
 
 == Frequently Asked Questions ==
 
 = Does it work with Divi 5? =
 
-Yes. Quick Modules for Divi is designed for the Divi 5 module picker in both the Visual Builder and Theme Builder.
+Yes. ALP Quick Modules for Divi is designed for the Divi 5 module picker in both the Visual Builder and Theme Builder.
+
+= Does it support Divi Components? =
+
+Yes. Starting with version 1.0.6, Divi Components shown in the module picker can be added to Favorites and Recent. Components are tracked by their stable Divi component ID rather than only by their visible name, so components with duplicate names remain distinct and renamed components can still be resolved.
 
 = Does it support Divi 4? =
 
@@ -56,23 +93,31 @@ No. Its CSS and JavaScript are loaded only inside Divi builder interfaces, not o
 
 = Are favorites shared between users? =
 
-No. Favorites and recent modules are stored per WordPress user, so each user can keep a personal workflow.
+No. Favorites and recent modules or Components are stored per WordPress user, so each user can keep a personal workflow.
 
 = How many recent modules are stored? =
 
-The plugin keeps up to eight recently used modules.
+The plugin keeps up to eight recently used modules or Components.
 
 = Can favorites be reordered? =
 
 Yes. Drag favorite cards into the order you prefer. The order is saved automatically.
 
+= Is ALP Quick Modules for Divi completely free? =
+
+Yes. The plugin is completely free. There is no premium tier, license key, feature paywall, usage limit, or external subscription required.
+
 = Does the plugin track users or connect to an external service? =
 
-No. Quick Modules for Divi includes no tracking, telemetry, remote API calls, or external service dependency.
+No. ALP Quick Modules for Divi includes no tracking, telemetry, remote API calls, or external service dependency.
+
+= What happens to my Favorites and Recent preferences if I deactivate or delete the plugin? =
+
+Deactivating the plugin keeps your preferences so they are available if you reactivate it. Deleting the plugin removes its stored Favorites and Recent user preferences from the database.
 
 == Screenshots ==
 
-1. Complete view of Quick Modules for Divi inside the Divi 5 Visual Builder, showing Favorites, Recent, and the standard module picker together.
+1. Complete view of ALP Quick Modules for Divi inside the Divi 5 Visual Builder, showing Favorites, Recent, and the standard module picker together.
 2. Closer look at Favorites and Recent in Divi 5 dark mode.
 3. Closer look at Favorites and Recent in Divi 5 light mode.
 4. Green confirmation feedback after adding a module to Favorites.
@@ -81,16 +126,38 @@ No. Quick Modules for Divi includes no tracking, telemetry, remote API calls, or
 
 == Privacy ==
 
-Quick Modules for Divi does not collect or transmit personal data. Favorite and recent module names are stored as WordPress user metadata in the site's own database. The plugin makes no remote requests and includes no analytics or telemetry.
+ALP Quick Modules for Divi does not collect or transmit personal data. Favorite and recent module names and stable Divi Component identifiers are stored as WordPress user metadata in the site's own database. The plugin makes no remote requests and includes no analytics or telemetry.
+
+Stored preferences can be erased through WordPress privacy tools and are removed when the plugin is deleted. Deactivating the plugin does not remove preferences.
 
 == Changelog ==
+
+= 1.0.6 =
+* Keeps Divi 5.15.1's native fluid Add From Library width untouched by using a removable New Module-only width class instead of overwriting Divi's inline width.
+* Clips Favorite-star overlays to the active module-picker body and matches their z-index to the Divi modal, preventing stars from appearing over the builder toolbar, page canvas, or modal tabs while scrolling.
+* Prevents Quick Modules sizing, overlays, and dragging from affecting Divi's Add From Library and New Row tabs; those tabs now retain Divi 5.15.1's native dimensions and layout.
+* Adds Favorites and Recent support for Divi Components introduced in Divi 5.15.
+* Stores Components with their stable Divi component ID, library type, module type, and display name instead of relying on the visible name alone.
+* Keeps Components with identical names separate in Favorites and Recent and supports renamed Components by stable identity.
+* Supports Divi's lazy-loaded Component list when launching a saved Component from Favorites or Recent.
+* Fixes Favorite-star rendering for every visible Divi Component tile, including Components with duplicate or different display names.
+* Collects every direct picker button in Divi 5.15.1 before class-based fallbacks, preventing Component tiles from being skipped during React renders.
+* Uses Divi 5.15.1's native Component picker selector and data attributes directly, with a React-safe body-level Favorite overlay.
+* Preserves existing module Favorites and Recent preferences without resetting user data.
+* Verified compatibility with Divi 5.15.1 module-picker structure and Component data attributes.
 
 = 1.0.5 =
 * Keeps nested Add Element module pickers from opening far off-center.
 * Adds drag-to-move support using the native Divi modal header.
-* Preserves the stable 1.0.4 picker sizing, localization, search, scroll, and third-party module behavior.
+* Preserves the stable 1.0.4 picker sizing, localization, search, scroll, third-party module behavior, and WordPress.org review fixes.
+* Replaces the static clock icon innerHTML assignment with DOM-safe SVG node creation.
+* Adds a WordPress personal-data eraser for stored Favorites and Recent preferences.
+* Removes stored Quick Modules user preferences only when the plugin is deleted, not when it is deactivated.
+* Updated bundled translations to better align with official WordPress locale glossaries, including Spanish terminology corrections for es_ES and regional wording adjustments for es_CR.
 
 = 1.0.4 =
+* Use WordPress-generated AJAX endpoint URLs instead of constructing admin endpoint paths in JavaScript.
+* Use the plugin-specific ALPQMD/alpqmd prefix for global PHP, AJAX, JavaScript, nonce, and user-meta identifiers to prevent conflicts.
 * Fix WordPress Plugin Check i18n errors caused by runtime module-name lookups.
 * Resolve saved Divi module labels through Divi's loaded translation catalogs without using low-level translate() with dynamic strings.
 * Restore the proven 1.0.3 picker detection, width, search, MutationObserver, and virtualized-scroll behavior to prevent the module picker from shrinking or losing favorite stars after scrolling/searching.
