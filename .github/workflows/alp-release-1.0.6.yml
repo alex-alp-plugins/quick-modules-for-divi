@@ -25,7 +25,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .release/part-* | tr -d '\n\r' | base64 -d > /tmp/alp-quick-modules-for-divi-1.0.6.zip
+          {
+            cat .release/part-00
+            cat .release/part-01
+            cat .release/p02-00 .release/p02-01 .release/p02-02 .release/p02-03
+            cat .release/part-03 .release/part-04 .release/part-05 .release/part-06 .release/part-07 .release/part-08 .release/part-09
+          } | tr -d '\n\r' | base64 -d > /tmp/alp-quick-modules-for-divi-1.0.6.zip
           echo "9813981f767d673726d8c654aa039f549e4700a564c352839d66002ff09f38fe  /tmp/alp-quick-modules-for-divi-1.0.6.zip" | sha256sum -c -
           unzip -t /tmp/alp-quick-modules-for-divi-1.0.6.zip
           rm -rf /tmp/alp-qm-package
