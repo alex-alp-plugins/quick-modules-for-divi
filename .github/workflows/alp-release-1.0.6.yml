@@ -1,18 +1,102 @@
-name: ALP Release Bridge Check
+name: Publish ALP Quick Modules for Divi 1.0.6
 
 on:
   push:
     branches:
       - alp-release-1.0.6
     paths:
-      - .github/workflows/alp-release-1.0.6.yml
+      - .release/ready-1.0.6
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  check:
+  release:
     runs-on: ubuntu-latest
     steps:
-      - name: Confirm release bridge
-        run: echo "ALP release bridge is available."
+      - name: Check out staged release branch
+        uses: actions/checkout@v4
+        with:
+          ref: alp-release-1.0.6
+          fetch-depth: 0
+
+      - name: Rebuild and verify exact tested ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .release/part-* | tr -d '\n\r' | base64 -d > /tmp/alp-quick-modules-for-divi-1.0.6.zip
+          echo "9813981f767d673726d8c654aa039f549e4700a564c352839d66002ff09f38fe  /tmp/alp-quick-modules-for-divi-1.0.6.zip" | sha256sum -c -
+          unzip -t /tmp/alp-quick-modules-for-divi-1.0.6.zip
+          rm -rf /tmp/alp-qm-package
+          mkdir -p /tmp/alp-qm-package
+          unzip -q /tmp/alp-quick-modules-for-divi-1.0.6.zip -d /tmp/alp-qm-package
+          test -d /tmp/alp-qm-package/alp-quick-modules-for-divi
+          cp .release/README.md /tmp/README.md
+
+      - name: Validate release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT=/tmp/alp-qm-package/alp-quick-modules-for-divi
+          grep -Eq '^ \* Version:[[:space:]]+1\.0\.6[[:space:]]*$|^Version:[[:space:]]+1\.0\.6[[:space:]]*$' "$ROOT/alp-quick-modules-for-divi.php"
+          grep -Fq "const VERSION = '1.0.6';" "$ROOT/alp-quick-modules-for-divi.php"
+          grep -Fq "const ASSET_VERSION = '1.0.6.9';" "$ROOT/alp-quick-modules-for-divi.php"
+          grep -Eq '^Stable tag:[[:space:]]+1\.0\.6[[:space:]]*$' "$ROOT/readme.txt"
+          php -l "$ROOT/alp-quick-modules-for-divi.php"
+          php -l "$ROOT/uninstall.php"
+
+      - name: Sync tested package to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT=/tmp/alp-qm-package/alp-quick-modules-for-divi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B main origin/main
+
+          rm -rf assets languages
+          rm -f quick-modules-for-divi.php alp-quick-modules-for-divi.php readme.txt uninstall.php LICENSE.txt
+          cp "$ROOT/alp-quick-modules-for-divi.php" .
+          cp "$ROOT/readme.txt" .
+          cp "$ROOT/uninstall.php" .
+          cp "$ROOT/LICENSE.txt" .
+          cp -R "$ROOT/assets" .
+          cp -R "$ROOT/languages" .
+          cp /tmp/README.md README.md
+
+          rm -f .github/workflows/alp-release-bridge.yml
+
+          git add -A
+          git status --short
+          git commit -m "Release ALP Quick Modules for Divi 1.0.6"
+          git push origin main
+          echo "RELEASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Create tag and GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git tag -a v1.0.6 "$RELEASE_SHA" -m "ALP Quick Modules for Divi 1.0.6"
+          git push origin v1.0.6
+          cat > /tmp/release-notes.md <<'EOF'
+          ## ALP Quick Modules for Divi 1.0.6
+
+          This release adds Divi 5.15 Components support and includes the final compatibility fixes tested in build 1.0.6.9.
+
+          ### Highlights
+          - Favorites and Recent support for Divi Components.
+          - Stable Component ID tracking, including duplicate names and renamed Components.
+          - Lazy-loaded Component resolution.
+          - Fix for Favorite-star rendering on visible Component tiles.
+          - Restores Divi 5.15.1 native **Add From Library** width.
+          - Prevents Favorite-star overlays from escaping over the toolbar, page canvas, or modal tabs.
+          - Keeps Quick Modules sizing, overlays, and dragging isolated from **Add From Library** and **New Row**.
+          - Preserves existing Favorites and Recent user data.
+
+          The attached ZIP is the exact package that passed final testing. Its SHA-256 is:
+          `9813981f767d673726d8c654aa039f549e4700a564c352839d66002ff09f38fe`
+          EOF
+          gh release create v1.0.6 /tmp/alp-quick-modules-for-divi-1.0.6.zip             --title "ALP Quick Modules for Divi v1.0.6"             --notes-file /tmp/release-notes.md             --latest
