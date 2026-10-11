@@ -1,1 +1,2 @@
 Verify corrected WordPress.org icon filename
+verify-current-svn
