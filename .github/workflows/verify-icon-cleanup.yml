@@ -1,0 +1,29 @@
+name: Verify WordPress.org icon cleanup
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: contains(github.event.head_commit.message, '[verify-icon-cleanup]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Subversion
+        run: sudo apt-get update -y && sudo apt-get install -y subversion
+      - name: Verify current WordPress.org assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          svn ls "https://plugins.svn.wordpress.org/alp-quick-modules-for-divi/assets/" | sort > assets.txt
+          cat assets.txt
+          grep -Fx "icon-256x256.png" assets.txt
+          grep -Fx "icon-256x256.gif" assets.txt
+          if grep -Fx "icon-256x256..png" assets.txt; then
+            echo "OLD_DOUBLE_DOT_ICON_EXISTS=yes"
+          else
+            echo "OLD_DOUBLE_DOT_ICON_EXISTS=no"
+          fi
