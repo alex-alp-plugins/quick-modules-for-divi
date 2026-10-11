@@ -14,6 +14,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install Subversion
+        shell: bash
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y subversion
+
       - name: Check corrected icon and plugin metadata
         shell: bash
         run: |
@@ -26,6 +32,10 @@ jobs:
             printf '%s|' "$name"
             curl -L -sS -o /tmp/icon -w 'HTTP=%{http_code}|TYPE=%{content_type}|SIZE=%{size_download}|URL=%{url_effective}\n' "$url"
           done
+
+          echo "===== CURRENT SVN ASSETS ====="
+          svn ls "https://plugins.svn.wordpress.org/$SLUG/assets/" | sort
+          echo
 
           echo "===== PLUGIN INFO API ====="
           curl -sS --get             --data-urlencode "action=plugin_information"             --data-urlencode "request[slug]=$SLUG"             "https://api.wordpress.org/plugins/info/1.2/" > /tmp/plugin.json
