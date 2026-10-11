@@ -26,9 +26,11 @@ There is no premium tier, no license key, no feature paywall, no usage limit, an
 
 * Favorite your most-used Divi modules and Components.
 * Access recently used modules and Components instantly.
-* Track Divi Components by stable component ID so duplicate names remain distinct.
+* Add Divi Components to Favorites and Recent in Divi 5.15 and newer.
+* Keep Components with identical names separate using their stable Divi Component ID.
+* Renamed Components can still be resolved from Favorites and Recent.
 * Reorder Favorites with drag and drop.
-* Insert modules directly from Favorites and Recent.
+* Insert modules and Components directly from Favorites and Recent.
 * Remove favorites from either the shortcut cards or the regular module list.
 * Clear visual feedback when favorites are added or removed.
 * Works with the Divi 5 Visual Builder and Theme Builder.
@@ -47,11 +49,13 @@ There is no premium tier, no license key, no feature paywall, no usage limit, an
 
 ALP Quick Modules for Divi integrates directly with the Divi 5 module picker while preserving the native builder workflow.
 
-It supports both the Visual Builder and Theme Builder and keeps your favorite and recent Divi modules and Components close at hand while you build. Divi Components are supported in Divi 5.15 and newer.
+It supports both the Visual Builder and Theme Builder and keeps your favorite and recent Divi modules and Components close at hand while you build.
+
+Divi Components are supported in Divi 5.15 and newer.
 
 = 🔒 Privacy Friendly =
 
-The plugin works locally inside your WordPress installation. Favorite and recent module names, plus stable identifiers for saved Divi Components, are stored as WordPress user metadata in your site's own database.
+The plugin works locally inside your WordPress installation. Favorite and recent module names, along with stable identifiers for saved Divi Components, are stored as WordPress user metadata in your site's own database.
 
 It does not track users, send analytics, require an external account, or communicate with third-party services.
 
