@@ -1,39 +1,13 @@
-name: Remove obsolete WordPress.org icon
+name: Obsolete icon cleanup retired
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  cleanup:
-    if: contains(github.event.head_commit.message, '[cleanup-old-icon]')
+  retired:
     runs-on: ubuntu-latest
-    env:
-      SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
-      SVN_PASSWORD: ${{ secrets.WPORG_SVN_PASSWORD }}
-
     steps:
-      - name: Install Subversion
-        run: sudo apt-get update -y && sudo apt-get install -y subversion
-
-      - name: Delete obsolete duplicate icon only
-        shell: bash
-        run: |
-          set -euo pipefail
-          svn checkout "https://plugins.svn.wordpress.org/alp-quick-modules-for-divi/" wporg --username "$SVN_USERNAME" --password "$SVN_PASSWORD" --non-interactive
-          cd wporg
-          test -f "assets/icon-256x256..png"
-          test -f "assets/icon-256x256.png"
-          svn delete "assets/icon-256x256..png"
-          svn commit "assets/icon-256x256..png" -m "Remove obsolete duplicate plugin icon" --username "$SVN_USERNAME" --password "$SVN_PASSWORD" --non-interactive
-
-      - name: Verify
-        shell: bash
-        run: |
-          set -euo pipefail
-          svn ls "https://plugins.svn.wordpress.org/alp-quick-modules-for-divi/assets/" > assets.txt
-          grep -Fx "icon-256x256.png" assets.txt
-          ! grep -Fx "icon-256x256..png" assets.txt
+      - run: echo "The obsolete WordPress.org icon has already been removed. No action is required."
