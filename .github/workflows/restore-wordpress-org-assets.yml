@@ -1,0 +1,47 @@
+name: Restore WordPress.org assets
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  restore:
+    if: contains(github.event.head_commit.message, '[restore-wporg-assets]')
+    runs-on: ubuntu-latest
+    env:
+      SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
+      SVN_PASSWORD: ${{ secrets.WPORG_SVN_PASSWORD }}
+      WPORG_SLUG: alp-quick-modules-for-divi
+
+    steps:
+      - name: Restore exact assets from pre-release SVN revision
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          svn checkout "https://plugins.svn.wordpress.org/$WPORG_SLUG/" /tmp/wporg-svn --username "$SVN_USERNAME" --password "$SVN_PASSWORD" --non-interactive
+          svn export -r 3740161 "https://plugins.svn.wordpress.org/$WPORG_SLUG/assets" /tmp/wporg-assets-before-1.0.6 --force
+
+          rm -rf /tmp/wporg-svn/assets
+          mkdir -p /tmp/wporg-svn/assets
+          cp -a /tmp/wporg-assets-before-1.0.6/. /tmp/wporg-svn/assets/
+
+          cd /tmp/wporg-svn
+          svn add --force assets --auto-props --parents --depth infinity >/dev/null
+
+          while IFS= read -r path; do
+            if [[ -n "$path" ]]; then
+              svn rm --force "$path"
+            fi
+          done < <(svn status assets | awk '/^!/ {print substr($0,9)}')
+
+          echo "Assets to restore:"
+          svn status assets
+
+          if [[ -n "$(svn status assets)" ]]; then
+            svn commit -m "Restore plugin assets after 1.0.6 deployment" --username "$SVN_USERNAME" --password "$SVN_PASSWORD" --non-interactive
+          fi
