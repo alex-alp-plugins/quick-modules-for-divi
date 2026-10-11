@@ -1,1 +1,0 @@
-Verify live WordPress.org metadata and no-revision CDN URLs
