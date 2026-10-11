@@ -1,0 +1,40 @@
+name: Verify corrected WordPress.org icon
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: contains(github.event.head_commit.message, '[verify-wporg-icon]')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check corrected icon and plugin metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          SLUG="alp-quick-modules-for-divi"
+
+          echo "===== ICON URLS ====="
+          for name in icon-256x256.png icon-256x256..png icon-256x256.gif icon-128x128.png icon-128x128.gif; do
+            url="https://ps.w.org/$SLUG/assets/$name"
+            printf '%s|' "$name"
+            curl -L -sS -o /tmp/icon -w 'HTTP=%{http_code}|TYPE=%{content_type}|SIZE=%{size_download}|URL=%{url_effective}\n' "$url"
+          done
+
+          echo "===== PLUGIN INFO API ====="
+          curl -sS --get             --data-urlencode "action=plugin_information"             --data-urlencode "request[slug]=$SLUG"             "https://api.wordpress.org/plugins/info/1.2/" > /tmp/plugin.json
+
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/plugin.json'))
+          print('version=',d.get('version'))
+          print('last_updated=',d.get('last_updated'))
+          print('icons=',json.dumps(d.get('icons'),sort_keys=True))
+          print('banners=',json.dumps(d.get('banners'),sort_keys=True))
+          PY
