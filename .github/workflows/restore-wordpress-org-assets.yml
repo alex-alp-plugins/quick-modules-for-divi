@@ -18,6 +18,12 @@ jobs:
       WPORG_SLUG: alp-quick-modules-for-divi
 
     steps:
+      - name: Install Subversion
+        shell: bash
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y subversion
+
       - name: Restore exact assets from pre-release SVN revision
         shell: bash
         run: |
