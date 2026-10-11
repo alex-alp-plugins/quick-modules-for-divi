@@ -1,0 +1,1 @@
+Verify WordPress.org assets after 1.0.6 deployment
