@@ -58,7 +58,56 @@ jobs:
 
           rm -rf             /tmp/alp-wporg-source/.github             /tmp/alp-wporg-source/.wordpress-org             /tmp/alp-wporg-source/README.md
 
-          grep -Eq '^Stable tag:[[:space:]]+'"$VERSION"'[[:space:]]*$' /tmp/alp-wporg-source/readme.txt
+          # Keep the tested plugin code from the immutable release tag, but use
+          # the current WordPress.org readme from main so listing copy can be
+          # refined without moving or rebuilding the v$VERSION release tag.
+          cp "$GITHUB_WORKSPACE/readme.txt" /tmp/alp-wporg-source/readme.txt
+
+          grep -Eq '^Stable tag:[[:space:]]+'"$VERSION"'[[:space:]]*
+          grep -Eq '^ \* Version:[[:space:]]+'"$VERSION"'[[:space:]]*$' /tmp/alp-wporg-source/alp-quick-modules-for-divi.php
+          php -l /tmp/alp-wporg-source/alp-quick-modules-for-divi.php
+          php -l /tmp/alp-wporg-source/uninstall.php
+
+      - name: Check out WordPress.org SVN
+        shell: bash
+        run: |
+          set -euo pipefail
+          svn checkout "https://plugins.svn.wordpress.org/$WPORG_SLUG/" /tmp/wporg-svn             --username "$SVN_USERNAME"             --password "$SVN_PASSWORD"             --non-interactive
+
+      - name: Sync trunk and create immutable release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          SVN_DIR=/tmp/wporg-svn
+          SRC=/tmp/alp-wporg-source
+
+          if [[ -e "$SVN_DIR/tags/$VERSION" ]]; then
+            echo "::error::WordPress.org tag $VERSION already exists. Refusing to overwrite an immutable release tag."
+            exit 1
+          fi
+
+          mkdir -p "$SVN_DIR/trunk"
+          rsync -a --delete "$SRC/" "$SVN_DIR/trunk/"
+
+          cd "$SVN_DIR"
+          svn add --force trunk --auto-props --parents --depth infinity >/dev/null
+
+          while IFS= read -r path; do
+            [[ -n "$path" ]] && svn rm --force "$path"
+          done < <(svn status trunk | awk '/^!/ {print substr($0,9)}')
+
+          svn copy trunk "tags/$VERSION"
+
+          echo "WordPress.org changes to publish:"
+          svn status
+
+      - name: Publish to WordPress.org
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/wporg-svn
+          svn commit             -m "Release $VERSION"             --username "$SVN_USERNAME"             --password "$SVN_PASSWORD"             --non-interactive
+ /tmp/alp-wporg-source/readme.txt
           grep -Eq '^ \* Version:[[:space:]]+'"$VERSION"'[[:space:]]*$' /tmp/alp-wporg-source/alp-quick-modules-for-divi.php
           php -l /tmp/alp-wporg-source/alp-quick-modules-for-divi.php
           php -l /tmp/alp-wporg-source/uninstall.php
