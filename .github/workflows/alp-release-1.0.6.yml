@@ -6,6 +6,7 @@ on:
       - alp-release-1.0.6
     paths:
       - .release/ready-1.0.6
+      - .github/workflows/alp-release-1.0.6.yml
 
 permissions:
   contents: write
