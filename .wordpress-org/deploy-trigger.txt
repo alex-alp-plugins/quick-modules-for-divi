@@ -1,2 +1,0 @@
-Deploy ALP Quick Modules for Divi 1.0.6 to WordPress.org
-retry: 2026-10-11
