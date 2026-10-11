@@ -45,8 +45,8 @@ jobs:
           set -euo pipefail
           ROOT=/tmp/alp-qm-package/alp-quick-modules-for-divi
           grep -Eq '^ \* Version:[[:space:]]+1\.0\.6[[:space:]]*$|^Version:[[:space:]]+1\.0\.6[[:space:]]*$' "$ROOT/alp-quick-modules-for-divi.php"
-          grep -Fq "const VERSION = '1.0.6';" "$ROOT/alp-quick-modules-for-divi.php"
-          grep -Fq "const ASSET_VERSION = '1.0.6.9';" "$ROOT/alp-quick-modules-for-divi.php"
+          grep -Eq "const[[:space:]]+VERSION[[:space:]]*=[[:space:]]*'1\.0\.6';" "$ROOT/alp-quick-modules-for-divi.php"
+          grep -Eq "const[[:space:]]+ASSET_VERSION[[:space:]]*=[[:space:]]*'1\.0\.6\.9';" "$ROOT/alp-quick-modules-for-divi.php"
           grep -Eq '^Stable tag:[[:space:]]+1\.0\.6[[:space:]]*$' "$ROOT/readme.txt"
           php -l "$ROOT/alp-quick-modules-for-divi.php"
           php -l "$ROOT/uninstall.php"
