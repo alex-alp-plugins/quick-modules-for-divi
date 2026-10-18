@@ -1,0 +1,96 @@
+name: Restore animated WordPress.org icons
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  restore-icons:
+    if: contains(github.event.head_commit.message, '[restore-animated-icons]')
+    runs-on: ubuntu-latest
+    env:
+      SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
+      SVN_PASSWORD: ${{ secrets.WPORG_SVN_PASSWORD }}
+      WPORG_SLUG: alp-quick-modules-for-divi
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Subversion
+        shell: bash
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y subversion
+
+      - name: Rebuild and verify uploaded GIFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/alp-icons
+
+          cat .wporg-deploy/icon-refresh/icon128.part.* | tr -d '\n\r' | base64 -d > /tmp/alp-icons/icon-128x128.gif
+          cat .wporg-deploy/icon-refresh/icon256.part.* | tr -d '\n\r' | base64 -d > /tmp/alp-icons/icon-256x256.gif
+
+          echo "e2ccf37bf3402f4d17b286d93401b3299d6903cc4fc6256a2067b079142ba294  /tmp/alp-icons/icon-128x128.gif" | sha256sum -c -
+          echo "931cea561a6091d4c593a5353c2a008b0bdc975b762340506999d566eff153b5  /tmp/alp-icons/icon-256x256.gif" | sha256sum -c -
+
+          file /tmp/alp-icons/icon-128x128.gif
+          file /tmp/alp-icons/icon-256x256.gif
+
+      - name: Update only WordPress.org icon assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          svn checkout "https://plugins.svn.wordpress.org/$WPORG_SLUG/" /tmp/wporg             --username "$SVN_USERNAME"             --password "$SVN_PASSWORD"             --non-interactive
+
+          cd /tmp/wporg
+
+          cp /tmp/alp-icons/icon-128x128.gif assets/icon-128x128.gif
+          cp /tmp/alp-icons/icon-256x256.gif assets/icon-256x256.gif
+          svn add --force assets/icon-128x128.gif assets/icon-256x256.gif >/dev/null
+
+          if [[ -e assets/icon-128x128.png ]]; then
+            svn rm assets/icon-128x128.png
+          fi
+          if [[ -e assets/icon-256x256.png ]]; then
+            svn rm assets/icon-256x256.png
+          fi
+
+          echo "Pending changes:"
+          svn status assets
+
+          unexpected="$(svn status assets | awk '{print $2}' | grep -Ev '^assets/icon-(128x128|256x256)\.(gif|png)$' || true)"
+          if [[ -n "$unexpected" ]]; then
+            echo "::error::Unexpected WordPress.org asset changes detected:"
+            echo "$unexpected"
+            exit 1
+          fi
+
+          test -n "$(svn status assets)"
+
+          svn commit             assets/icon-128x128.gif             assets/icon-256x256.gif             assets/icon-128x128.png             assets/icon-256x256.png             -m "Restore animated plugin icons"             --username "$SVN_USERNAME"             --password "$SVN_PASSWORD"             --non-interactive
+
+      - name: Verify SVN icons
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          svn cat "https://plugins.svn.wordpress.org/$WPORG_SLUG/assets/icon-128x128.gif" > /tmp/check-128.gif
+          svn cat "https://plugins.svn.wordpress.org/$WPORG_SLUG/assets/icon-256x256.gif" > /tmp/check-256.gif
+
+          echo "e2ccf37bf3402f4d17b286d93401b3299d6903cc4fc6256a2067b079142ba294  /tmp/check-128.gif" | sha256sum -c -
+          echo "931cea561a6091d4c593a5353c2a008b0bdc975b762340506999d566eff153b5  /tmp/check-256.gif" | sha256sum -c -
+
+          LIST="$(svn ls "https://plugins.svn.wordpress.org/$WPORG_SLUG/assets/")"
+          echo "$LIST"
+          echo "$LIST" | grep -Fx "icon-128x128.gif"
+          echo "$LIST" | grep -Fx "icon-256x256.gif"
+          if echo "$LIST" | grep -Eq '^icon-(128x128|256x256)\.png$'; then
+            echo "::error::Static PNG plugin icon still exists."
+            exit 1
+          fi
