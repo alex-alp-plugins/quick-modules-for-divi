@@ -67,6 +67,10 @@ As a Divi site grows, the module picker can contain dozens of native modules, th
 
 Favorite them once, reorder them however you like, and access them directly whenever you open the Divi 5 module picker.
 
+= 💙 Enjoying Quick Modules? =
+
+If ALP Quick Modules for Divi saves you time or improves your workflow, it would mean a lot if you [left a rating or review on WordPress.org](https://wordpress.org/support/plugin/alp-quick-modules-for-divi/reviews/#new-post). Your feedback helps support the plugin and makes it easier for other Divi users to discover it.
+
 ALP Quick Modules for Divi is independently developed by ALP Plugins and is not affiliated with, endorsed by, or sponsored by Elegant Themes. Divi is a trademark of Elegant Themes, Inc.
 
 == Installation ==
