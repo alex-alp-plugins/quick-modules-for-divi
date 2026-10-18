@@ -1,0 +1,88 @@
+name: Sync WordPress.org readme only
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  sync-readme:
+    if: contains(github.event.head_commit.message, '[sync-wporg-readme]')
+    runs-on: ubuntu-latest
+    env:
+      SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
+      SVN_PASSWORD: ${{ secrets.WPORG_SVN_PASSWORD }}
+      WPORG_SLUG: alp-quick-modules-for-divi
+
+    steps:
+      - name: Check out GitHub repository
+        uses: actions/checkout@v4
+
+      - name: Install Subversion
+        run: sudo apt-get update -y && sudo apt-get install -y subversion
+
+      - name: Validate readme before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "Enjoying Quick Modules?" readme.txt
+          grep -F "left a rating or review on WordPress.org" readme.txt
+          grep -F "https://wordpress.org/support/plugin/alp-quick-modules-for-divi/reviews/#new-post" readme.txt
+
+          if grep -Fx "== Privacy ==" readme.txt || grep -Fx "== 🛡️ Privacy ==" readme.txt; then
+            echo "::error::Redundant standalone Privacy section still exists."
+            exit 1
+          fi
+
+          grep -Fx "= 🔒 Privacy Friendly =" readme.txt
+          grep -Eq '^Stable tag:[[:space:]]+1\.0\.6[[:space:]]*$' readme.txt
+
+      - name: Check out WordPress.org SVN
+        shell: bash
+        run: |
+          set -euo pipefail
+          svn checkout "https://plugins.svn.wordpress.org/$WPORG_SLUG/" /tmp/wporg             --username "$SVN_USERNAME"             --password "$SVN_PASSWORD"             --non-interactive
+
+      - name: Sync only trunk readme
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp readme.txt /tmp/wporg/trunk/readme.txt
+
+          cd /tmp/wporg
+          STATUS="$(svn status)"
+          echo "$STATUS"
+
+          test "$(printf '%s\n' "$STATUS" | sed '/^$/d' | wc -l)" -eq 1
+          printf '%s\n' "$STATUS" | grep -Fx "M       trunk/readme.txt"
+
+          if [[ -n "$(svn status assets tags)" ]]; then
+            echo "::error::Unexpected assets or tag changes detected."
+            svn status assets tags
+            exit 1
+          fi
+
+          svn commit trunk/readme.txt             -m "Update plugin directory description"             --username "$SVN_USERNAME"             --password "$SVN_PASSWORD"             --non-interactive
+
+      - name: Verify published WordPress.org readme
+        shell: bash
+        run: |
+          set -euo pipefail
+          svn cat "https://plugins.svn.wordpress.org/$WPORG_SLUG/trunk/readme.txt" > /tmp/published-readme.txt
+
+          cmp -s readme.txt /tmp/published-readme.txt
+          grep -F "Enjoying Quick Modules?" /tmp/published-readme.txt
+          grep -F "left a rating or review on WordPress.org" /tmp/published-readme.txt
+          grep -Fx "= 🔒 Privacy Friendly =" /tmp/published-readme.txt
+
+          if grep -Fx "== Privacy ==" /tmp/published-readme.txt || grep -Fx "== 🛡️ Privacy ==" /tmp/published-readme.txt; then
+            echo "::error::Standalone Privacy section still published."
+            exit 1
+          fi
+
+          if [[ -n "$(svn status /tmp/wporg/assets /tmp/wporg/tags)" ]]; then
+            echo "::error::Protected SVN areas changed unexpectedly."
+            exit 1
+          fi
