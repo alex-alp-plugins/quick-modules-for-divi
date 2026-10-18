@@ -132,12 +132,6 @@ Deactivating the plugin keeps your preferences so they are available if you reac
 5. Red confirmation feedback after removing a module from Favorites.
 6. Favorite removal hover state: the star turns red to clearly indicate that clicking it will remove the module from Favorites.
 
-== 🛡️ Privacy ==
-
-ALP Quick Modules for Divi does not collect or transmit personal data. Favorite and recent module names and stable Divi Component identifiers are stored as WordPress user metadata in the site's own database. The plugin makes no remote requests and includes no analytics or telemetry.
-
-Stored preferences can be erased through WordPress privacy tools and are removed when the plugin is deleted. Deactivating the plugin does not remove preferences.
-
 == Changelog ==
 
 = 1.0.6 =
