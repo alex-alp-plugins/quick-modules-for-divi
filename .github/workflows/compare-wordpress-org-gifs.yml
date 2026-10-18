@@ -1,0 +1,30 @@
+name: Compare WordPress.org animated icons
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    if: contains(github.event.head_commit.message, '[compare-wporg-gifs]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Subversion
+        run: sudo apt-get update -y && sudo apt-get install -y subversion
+      - name: Hash current SVN GIFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          SLUG="alp-quick-modules-for-divi"
+          svn cat "https://plugins.svn.wordpress.org/$SLUG/assets/icon-128x128.gif" > /tmp/icon-128x128.gif
+          svn cat "https://plugins.svn.wordpress.org/$SLUG/assets/icon-256x256.gif" > /tmp/icon-256x256.gif
+          echo "CURRENT:"
+          sha256sum /tmp/icon-128x128.gif /tmp/icon-256x256.gif
+          echo "EXPECTED:"
+          echo "e2ccf37bf3402f4d17b286d93401b3299d6903cc4fc6256a2067b079142ba294  /tmp/icon-128x128.gif"
+          echo "931cea561a6091d4c593a5353c2a008b0bdc975b762340506999d566eff153b5  /tmp/icon-256x256.gif"
+          echo "e2ccf37bf3402f4d17b286d93401b3299d6903cc4fc6256a2067b079142ba294  /tmp/icon-128x128.gif" | sha256sum -c -
+          echo "931cea561a6091d4c593a5353c2a008b0bdc975b762340506999d566eff153b5  /tmp/icon-256x256.gif" | sha256sum -c -
